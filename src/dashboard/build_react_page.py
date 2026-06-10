@@ -115,6 +115,8 @@ function Contenders(){
 }
 
 function Match({m}){
+  // Round each side's expected goals to a whole number (2.5 -> 3)
+  const xgRounded = m.xg.split('-').map(s=>Math.round(parseFloat(s))).join('-');
   return (
     <div className="match">
       <div className="top"><span>{m.date} · Group {m.group}</span><span>{m.city}</span></div>
@@ -126,7 +128,7 @@ function Match({m}){
       </div>
       <div className="meta">
         <span>Most likely: <b>{m.likely}</b></span>
-        <span>xG: {m.xg}</span>
+        <span>Expected goals: <b>{xgRounded}</b></span>
         {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
         {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
       </div>
