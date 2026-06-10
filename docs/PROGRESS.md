@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Champion+ Edges + React Predictions Page (D024)
+- Brainstormed edges; implemented 3 free ones: Elo ensemble (independent 2026 Elo, scale-aligned), altitude (Azteca -59 Elo for non-adapted teams, 7/72 games), rest/travel differential (16-city haversine)
+- Coefficients literature-informed/capped, flagged not-fitted (honest deviation from D007); ensemble is principled
+- 72 champion+ predictions generated; self-contained React page (dashboard/predictions.html, no build/server) with prob bars + group filter + altitude flags
+- 144 tests green. Champion+ is the headline; plain champion + Elo baseline still scored
+
 ## 2026-06-10 — Phase 4 Attention: H3 FAILS (clean negative result, D023)
 - Built real-lineup dataset: 4,038 Big-5 matches, starting XIs linked to EA attributes (TDD on helpers)
 - Attention transformer vs aggregation mean-pool, same features, 5 seeds, chronological holdout
