@@ -1,0 +1,59 @@
+{
+  "note": "All scores on 90-minute results; model fitted pre-tournament only.",
+  "2018": {
+    "n_train_matches": 8051,
+    "model": {
+      "model": "elo_dixon_coles_2018",
+      "n_matches": 64,
+      "brier_score": 0.2081,
+      "log_loss": 1.0374,
+      "rps": 0.2232,
+      "accuracy": 0.5312
+    },
+    "market": {
+      "model": "market_avg_devig_2018",
+      "n_matches": 64,
+      "brier_score": 0.1857,
+      "log_loss": 0.9417,
+      "rps": 0.1937,
+      "accuracy": 0.5625
+    }
+  },
+  "2022": {
+    "n_train_matches": 12111,
+    "model": {
+      "model": "elo_dixon_coles_2022",
+      "n_matches": 64,
+      "brier_score": 0.2241,
+      "log_loss": 1.1309,
+      "rps": 0.2477,
+      "accuracy": 0.4375
+    },
+    "market": {
+      "model": "market_avg_devig_2022",
+      "n_matches": 64,
+      "brier_score": 0.1951,
+      "log_loss": 1.0049,
+      "rps": 0.2087,
+      "accuracy": 0.5312
+    }
+  },
+  "pooled": {
+    "model": {
+      "model": "elo_dixon_coles_pooled",
+      "n_matches": 128,
+      "brier_score": 0.2161,
+      "log_loss": 1.0841,
+      "rps": 0.2355,
+      "accuracy": 0.4844
+    },
+    "market": {
+      "model": "market_pooled",
+      "n_matches": 128,
+      "brier_score": 0.1904,
+      "log_loss": 0.9733,
+      "rps": 0.2012,
+      "accuracy": 0.5469
+    }
+  }
+}

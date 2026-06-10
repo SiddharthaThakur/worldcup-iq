@@ -108,3 +108,32 @@ Registered before evaluating any 2026 World Cup outcome:
 **Decision:** Every live prediction is written to a timestamped JSON (including the SHA-256 of the fitted-params file) and git-committed before kickoff. The lock script REFUSES matches whose kickoff has passed. Matches played before a lock exists are backtest data and are reported separately from predictions, with the boundary date stated explicitly in the write-up.
 
 **Rationale:** "Honest evaluation" must be verifiable, not asserted. A public commit hash converts "trust me" into "check the git log" at near-zero cost.
+
+---
+
+## D013: Phase 1 Backtest Results — Baseline + Market Benchmark (2026-06-10)
+
+**Empirical finding (not a decision).** Leak-free backtest: for each World Cup, Elo AND Dixon-Coles params fitted only on matches strictly before that tournament's first match (2018: 8,051 training matches; 2022: 12,111). Elo updates online within the tournament. Market = de-vigged (power method) cross-book average closing odds from the football-data.co.uk World Cup workbook. **Both model and market scored on 90-minute results** (1X2 settlement convention; ET winners count as draws).
+
+| Metric (pooled, 128 matches) | Elo+DC baseline | Market |
+|---|---|---|
+| Brier | 0.2161 | 0.1904 |
+| RPS | 0.2355 | 0.2012 |
+| Log-loss | 1.0841 | 0.9733 |
+| Accuracy | 48.4% | 54.7% |
+
+Per-year model Brier: 2018 = 0.2081, 2022 = 0.2241 (2022 was upset-heavy for the market too: 0.1951 vs 0.1857 in 2018).
+
+- Phase 1 kill criterion (model Brier > 0.60) **passed** with wide margin.
+- Consistent with pre-registered H2: the baseline does not beat the market.
+- These numbers are now the champion's record. Challengers must beat Brier 0.2161 pooled (gate per D009: within 0.02 or better).
+
+**Fitted live params** (post-2010 through 2026-06-09, n=15,812): intercept=0.1332, elo_coef=0.4448/100Elo, home_adv=0.2767, rho=-0.0280. Sanity: home advantage ≈ +32% goals, small negative rho — both consistent with the football literature.
+
+---
+
+## D014: 90-Minute Results as the Evaluation Outcome Definition (2026-06-10)
+
+**Decision:** All model-vs-market scoring uses the 90-minute result. Knockout matches decided in extra time count as draws for evaluation.
+
+**Rationale:** 1X2 odds settle on 90 minutes. Scoring the model on post-ET results while the market is implicitly scored on 90-minute results would bias the comparison. The source of 90-minute scores is the odds workbook (HGFT/AGFT columns); our results dataset (martj42) records post-ET scores and is used for training only.

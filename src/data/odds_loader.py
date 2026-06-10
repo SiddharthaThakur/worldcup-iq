@@ -130,6 +130,51 @@ def load_historical_wc_odds(path: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def load_wc_odds_workbook(path: Path, sheet: str, method: str = "power") -> pd.DataFrame:
+    """Load one sheet of the football-data.co.uk World Cup workbook
+    (WorldCup2026.xlsx contains sheets for 2014/2018/2022 + 2026 qualifiers).
+
+    Uses the cross-bookmaker AVERAGE odds (H-Avg/D-Avg/A-Avg) as the
+    market consensus. Also extracts the 90-MINUTE result (HGFT/AGFT):
+    1X2 odds settle on the 90-minute score, so a knockout match decided
+    in extra time counts as a draw for market-comparison purposes.
+
+    Returns columns: match_id, home_code, away_code, date, prob_home,
+    prob_draw, prob_away, overround, result_90.
+    """
+    from src.data.team_aliases import resolve_team_code
+
+    df = pd.read_excel(path, sheet_name=sheet)
+    # 2026 qualifiers sheet uses H_Avg / HG; tournament sheets use H-Avg / HGFT
+    df.columns = [c.replace("_", "-") for c in df.columns]
+    hg_col = "HGFT" if "HGFT" in df.columns else "HG"
+    ag_col = "AGFT" if "AGFT" in df.columns else "AG"
+
+    rows = []
+    for _, r in df.iterrows():
+        if pd.isna(r.get("H-Avg")) or pd.isna(r.get("D-Avg")) or pd.isna(r.get("A-Avg")):
+            continue
+        home_code = resolve_team_code(str(r["Home"]).strip())
+        away_code = resolve_team_code(str(r["Away"]).strip())
+        date = pd.Timestamp(r["Date"]).strftime("%Y-%m-%d")
+        mp = market_probs_from_odds(
+            match_id=f"{date}_{home_code}_{away_code}",
+            odds_home=float(r["H-Avg"]), odds_draw=float(r["D-Avg"]),
+            odds_away=float(r["A-Avg"]), method=method,
+        )
+        result_90 = None
+        if not pd.isna(r.get(hg_col)) and not pd.isna(r.get(ag_col)):
+            hg, ag = int(r[hg_col]), int(r[ag_col])
+            result_90 = "H" if hg > ag else ("D" if hg == ag else "A")
+        rows.append({
+            "match_id": mp.match_id, "home_code": home_code, "away_code": away_code,
+            "date": date, "prob_home": mp.prob_home, "prob_draw": mp.prob_draw,
+            "prob_away": mp.prob_away, "overround": mp.overround,
+            "result_90": result_90,
+        })
+    return pd.DataFrame(rows)
+
+
 def load_manual_odds(path: Path = ODDS_DIR / "manual_odds_2026.csv") -> pd.DataFrame:
     """Load manually entered 2026 odds.
 

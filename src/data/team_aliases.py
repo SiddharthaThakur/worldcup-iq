@@ -37,6 +37,7 @@ _DEFAULT_ALIASES: dict[str, list[str]] = {
     "GRE": ["Greece"],
     "HTI": ["Haiti"],
     "HUN": ["Hungary"],
+    "ISL": ["Iceland"],
     "IDN": ["Indonesia"],
     "IRN": ["Iran", "IR Iran"],
     "IRQ": ["Iraq"],
@@ -47,7 +48,8 @@ _DEFAULT_ALIASES: dict[str, list[str]] = {
     "JPN": ["Japan"],
     "JOR": ["Jordan"],
     "KEN": ["Kenya"],
-    "KOR": ["Korea Republic", "South Korea", "Korea Rep.", "Korea DPR"],
+    "KOR": ["Korea Republic", "South Korea", "Korea Rep."],
+    "PRK": ["Korea DPR", "North Korea", "DPR Korea"],
     "MEX": ["Mexico"],
     "MAR": ["Morocco"],
     "NED": ["Netherlands", "Holland"],
@@ -82,6 +84,9 @@ _DEFAULT_ALIASES: dict[str, list[str]] = {
     "VEN": ["Venezuela"],
     "WAL": ["Wales"],
     "ALG": ["Algeria"],
+    "BIH": ["Bosnia and Herzegovina", "Bosnia-Herzegovina", "Bosnia"],
+    "CPV": ["Cape Verde", "Cabo Verde", "Cape Verde Islands"],
+    "CUW": ["Curaçao", "Curacao"],
     "COD": ["DR Congo", "Congo DR", "Democratic Republic of the Congo"],
 }
 
