@@ -32,9 +32,11 @@
   .intro b{color:var(--ink)}
   .sec{font-size:15px;font-weight:700;margin:24px 0 12px}
   .cont{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #21262d}
-  .cont .nm{width:54px;font-weight:700} .cont .track{flex:1;background:#21262d;border-radius:5px;height:18px;overflow:hidden}
-  .cont .fill{height:100%;background:linear-gradient(90deg,#1f6feb,#388bfd);border-radius:5px}
-  .cont .v{width:48px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .cont .nm{width:54px;font-weight:700}
+  .cont .track{flex:1;background:#0b0f14;border:1px solid #30363d;border-radius:5px;height:20px;overflow:hidden}
+  .cont .fill{height:100%;background:linear-gradient(90deg,#2f81f7,#56a3ff);border-radius:4px;min-width:3px}
+  .cont .v{width:48px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .axis{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin:2px 0 8px;padding:0 96px 0 64px}
   .foot{color:var(--mut);font-size:11px;margin-top:28px;line-height:1.6;border-top:1px solid #21262d;padding-top:14px}
 </style>
 </head>
@@ -49,18 +51,21 @@ const pct1 = x => (x*100).toFixed(1);
 
 function Contenders(){
   if(!CONTENDERS.length) return null;
+  // Axis runs 0 -> SCALE so the leader's bar is substantial; bar LENGTH is
+  // proportional to the real probability (honest), the % is the exact value.
+  const SCALE = 0.15;
   return (
     <div>
-      <div className="sec">🏆 Chance of winning the World Cup <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(out of 100%, from 20,000 simulated tournaments)</span></div>
-      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>No team is a strong favourite — even the top side wins only about 1 in 8 times. The trophy is wide open.</div>
+      <div className="sec">🏆 Chance of winning the World Cup <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(from 20,000 simulated tournaments)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>No team is a strong favourite — even the top side wins only about 1 in 8 times. The trophy is wide open. Longer bar = more likely.</div>
+      <div className="axis"><span>0%</span><span>5%</span><span>10%</span><span>15%</span></div>
       {CONTENDERS.map(c=>(
         <div className="cont" key={c.team}>
           <span className="nm">{c.team}</span>
-          <span className="track"><span className="fill" style={{width:(c.champ*100)+'%'}}></span></span>
+          <span className="track"><span className="fill" style={{width:Math.min(100,c.champ/SCALE*100)+'%'}}></span></span>
           <span className="v">{pct1(c.champ)}%</span>
         </div>
       ))}
-      <div style={{color:'var(--mut)',fontSize:11,marginTop:6}}>Bars show the real probability out of 100% — so they're short on purpose: it's a 48-team field.</div>
     </div>
   );
 }
