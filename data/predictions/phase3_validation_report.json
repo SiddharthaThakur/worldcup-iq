@@ -1,0 +1,20 @@
+{
+  "n_holdout_games": 7101,
+  "holdout_season": 2025,
+  "correlation_strength_vs_outcome": 0.293,
+  "brier_by_lambda": {
+    "0.0": 0.2033,
+    "0.2": 0.201,
+    "0.4": 0.2001,
+    "0.6": 0.2009,
+    "0.8": 0.2036,
+    "1.0": 0.2085
+  },
+  "brier_elo": 0.2033,
+  "brier_best_blend": 0.2001,
+  "best_lambda": 0.4,
+  "gate": {
+    "passes": false,
+    "reason": "FAIL: strength-outcome correlation 0.29 < 0.3"
+  }
+}

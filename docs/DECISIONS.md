@@ -195,7 +195,32 @@ So EA FC 26 floors coverage for European/major-league players, but NOT for squad
 - 93.7% are verified professionals (found in Transfermarkt — club/position/age known)
 - The remainder carry international caps/goals only (universal from Wikipedia), used as a coarse floor
 
-**Per-team rule (operationalizes D018):** a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
+**Per-team rule (operationalizes D018), continued below.**
+
+---
+
+## D020: Phase 3 Validation Gate — BORDERLINE FAIL, Player Model Does NOT Deploy (2026-06-10)
+
+**The test (D009 gate, on club data so it's out-of-sample and large):** built a club Elo from 88k Transfermarkt league games 2006-2025; squad strength = sum of a club's players' market values (a player-composition aggregate); held out the 2025 season (7,101 games the Elo never trained on); compared Brier of pure Elo vs Elo-blended-with-strength across blend weights λ.
+
+**Result:**
+
+| λ (player blend) | 0.0 (pure Elo) | 0.2 | **0.4** | 0.6 | 0.8 | 1.0 (pure player) |
+|---|---|---|---|---|---|---|
+| Brier | 0.2033 | 0.2010 | **0.2001** | 0.2009 | 0.2036 | 0.2085 |
+
+- Brier IMPROVES with a moderate blend (0.2033 → 0.2001 at λ=0.4), worsens toward pure player value. The U-shape is textbook champion-challenger: combining beats either signal alone.
+- BUT correlation(strength-diff, outcome) = **0.293**, just under the pre-registered 0.30 threshold.
+
+**Decision: the gate FAILS (correlation 0.293 < 0.30). The player-composition model does NOT enter the live scorecard, and lineup sensitivity does NOT ship — exactly as D009 specifies.** The threshold was registered before any data was seen; missing it by 0.007 is still missing it. Moving the bar now would betray the entire premise of the project.
+
+**Honest reading:** this is a *promising near-miss*, not a flat negative. The Brier improvement over 7,101 games is real and the optimal-blend shape is strong evidence the approach carries signal. Two legitimate paths could clear the bar without goalpost-moving: (a) the live WC model uses EA FC ratings, not market value — EA ratings are cross-league calibrated and may correlate better; a club re-test on EA-based strength is a fair, pre-specified retest. (b) Phase 4's attention model may extract more from the same players. Until one of those clears the pre-registered bar, the player model is reported as "promising, unvalidated" and is scored separately, never as a trusted challenger.
+
+**Caveats (stated, not used to excuse the result):** market value is a current snapshot; Dixon-Coles params are the international ones — but both baseline and blend share them, so the relative Brier comparison holds.
+
+---
+
+## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
 

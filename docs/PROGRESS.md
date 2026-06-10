@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Phase 3 Built + Validated: BORDERLINE FAIL, model held back (D020)
+- Player strength aggregator (corr 0.72 w/ Elo) + composition model (Elo bridge + confidence blend), both TDD
+- Validation gate on 7,101 held-out club games: blend IMPROVES Brier 0.2033→0.2001 at λ=0.4 (textbook U-shape), BUT correlation 0.293 < pre-registered 0.30 → FAILS by 0.007
+- Honored the pre-registered bar: player model does NOT join live scorecard, lineup sensitivity does NOT ship. Promising near-miss, not a flat negative
+- Paths to clear it fairly: EA-rating-based club re-test, or Phase 4 attention. 122 tests green
+
 ## 2026-06-10 — Unified Player Table: 1,246 players × 4 sources (D019)
 - Matched every squad player to Kaggle stats / Understat / EA FC 26 / Transfermarkt on name+birthyear+nationality, fuzzy fallback for romanization (Korea 1→26/26 recovered)
 - Coverage: 81.9% have quantitative strength signal, 93.7% verified pro; 42/48 teams player-model-capable
