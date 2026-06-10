@@ -1,0 +1,15 @@
+{
+  "test": "H3: attention vs aggregation on held-out Big-5 club lineups (Poisson NLL)",
+  "n_train": 3230,
+  "n_holdout": 808,
+  "seeds": 5,
+  "epochs": 40,
+  "aggregation_nll_mean": 1.7831,
+  "aggregation_nll_std": 0.0011,
+  "attention_nll_mean": 1.7833,
+  "attention_nll_std": 0.0025,
+  "attention_improvement_mean": -0.0002,
+  "attention_improvement_std": 0.0033,
+  "attention_wins_seeds": "3/5",
+  "h3_verdict": "FAIL: attention does not beat aggregation \u2014 difference is within seed noise. Averaging is enough on these features."
+}

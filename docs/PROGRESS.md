@@ -2,6 +2,13 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Phase 4 Attention: H3 FAILS (clean negative result, D023)
+- Built real-lineup dataset: 4,038 Big-5 matches, starting XIs linked to EA attributes (TDD on helpers)
+- Attention transformer vs aggregation mean-pool, same features, 5 seeds, chronological holdout
+- Held-out Poisson NLL: agg 1.7831±0.0011 vs att 1.7833±0.0025 — INDISTINGUISHABLE (att wins 3/5, coin flip)
+- H3 FAILS: "averaging is enough", interactions add nothing even at club level. Attention shelved (D009). Publishable negative
+- Both challengers now settled: aggregation→champion (D022), attention→negative (D023). 133 tests green
+
 ## 2026-06-10 — Blend Promoted to Champion (D022); EA re-test significant (D021)
 - EA-based re-test (tight: real aggregator, confident club matches, bootstrap CIs): out-of-sample Brier improvement +0.0040, 95% CI [0.0018,0.0062] SIGNIFICANT; correlation 0.286 CI [0.243,0.329] straddles 0.30
 - Owner call: blend (λ=0.6×confidence) is now CHAMPION (v3); Elo baseline still locked+scored every match; lineup sensitivity still held; deviation from D009 letter documented

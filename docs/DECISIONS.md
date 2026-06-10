@@ -254,6 +254,26 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 ---
 
+## D023: Phase 4 (Attention) — H3 FAILS, Negative Result, Does NOT Deploy (2026-06-10)
+
+**The test (H3, pre-registered D008):** does an attention transformer that models player interactions beat simple aggregation (mean-pooling) on held-out club match prediction? Built a real-lineup dataset: 4,038 Big-5 matches (2022-2025) with starting XIs linked to EA FC attributes (pace/shooting/passing/dribbling/defending/physical/overall); 3,230 train / 808 chronologically-held-out. Both models share everything except attention-pool vs mean-pool, trained identically, compared on held-out Poisson NLL over 5 seeds.
+
+**Result:**
+
+| Model | Held-out Poisson NLL (5 seeds) |
+|---|---|
+| Aggregation (mean-pool) | 1.7831 ± 0.0011 |
+| Attention (transformer) | 1.7833 ± 0.0025 |
+| Attention improvement | **−0.0002 ± 0.0033** (attention wins 3/5 seeds — a coin flip) |
+
+**Verdict: H3 FAILS. Attention and aggregation are statistically indistinguishable.** The attention model does NOT deploy (D009 kill criterion). "Averaging is enough" — modeling player interactions adds no measurable predictive value over simply combining player qualities, even at CLUB level (where chemistry should be strongest). This is a clean, robust negative result, and per the roadmap it is publishable as-is: it answers "do player interactions transfer to match prediction?" with a well-powered no.
+
+**Scope/caveat (stated, not used to wriggle):** this tests attention over EA-ATTRIBUTE features. A richer interaction signal (passing networks, on-pitch xG combinations) might differ — but on the features a free, reproducible pipeline can assemble, the answer is no. The negative is specific to these features, and that's the honest boundary of the claim.
+
+**Consequence for the project:** the champion remains the Elo+composition blend (D022). Both challengers' fates are now settled: Challenger 1 (aggregation) → promoted to champion on significant Brier evidence; Challenger 2 (attention) → negative result, shelved. The aggregation-is-enough finding is itself a contribution.
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
