@@ -181,7 +181,21 @@ So EA FC 26 floors coverage for European/major-league players, but NOT for squad
 - Basic per-90 stats, full 2025/26 season: Kaggle `hubertsidorowicz/football-players-stats-2025-2026` (2,839 Big-5 players, incl. Born + Nation → proper deterministic entity key). Supersedes the March-9 FBRef Wayback snapshot.
 - xG / creation (npxG, xGChain, xGBuildup): Understat live endpoint (2,775 Big-5 players). The Haaland-context decomposition lives here.
 - Universal-ish ratings: EA FC 26 (16,228 players) — with the coverage caveat above.
-- FBRef (Cloudflare-blocked to scripts) and SoFIFA: not needed; superseded by the above.
+- Market value + caps as Tier-3 floor for unlicensed-league players: Transfermarkt (Kaggle `davidcariboo/player-scores`, 47,701 players). Recovers Gulf/Iranian/Uzbek players EA misses.
+- FBRef (Cloudflare-blocked to scripts) and SoFIFA: not needed. SoFIFA just displays EA ratings (= the EA FC 26 dataset, same coverage gap); superseded.
+
+---
+
+## D019: Unified Player Table + Per-Team Coverage Tiers (2026-06-10)
+
+**Built `unified_players.parquet`:** all 1,246 squad players matched to the 4 sources on normalized name + birth year, nationality breaking ties, fuzzy fallback (≥82) gated on nationality agreement to rescue romanized names. Validation: Korea went from 1/26 exact → 26/26 with fuzzy (name-order flips), zero false positives spot-checked.
+
+**Coverage (the honest scorecard input):**
+- 81.9% of players have a *quantitative* strength signal (xG / stats / EA rating / market value)
+- 93.7% are verified professionals (found in Transfermarkt — club/position/age known)
+- The remainder carry international caps/goals only (universal from Wikipedia), used as a coarse floor
+
+**Per-team rule (operationalizes D018):** a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
 

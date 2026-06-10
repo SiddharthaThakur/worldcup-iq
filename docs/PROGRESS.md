@@ -2,6 +2,13 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Unified Player Table: 1,246 players × 4 sources (D019)
+- Matched every squad player to Kaggle stats / Understat / EA FC 26 / Transfermarkt on name+birthyear+nationality, fuzzy fallback for romanization (Korea 1→26/26 recovered)
+- Coverage: 81.9% have quantitative strength signal, 93.7% verified pro; 42/48 teams player-model-capable
+- 6 Elo-only teams flagged: JOR/QAT/RSA/UZB/EGY/PAN (Egypt = Salah aside, squad is domestic-league)
+- Transfermarkt recovers the Gulf/Iran/Uzbek players EA misses; SoFIFA confirmed moot (= EA data)
+- 103 tests green. Next: Phase 3 player-composition model (player-delta-on-Elo design)
+
 ## 2026-06-10 — Player Data Secured: Kaggle + Understat + EA FC 26
 - Kaggle via gitignored .env from 1Password (user convention, not kaggle.json); pulled 3 datasets
 - Confirmed: Kaggle hubertsidorowicz stats are FULL 2025/26 season (June 1, fresher than my March Wayback FBRef) + Born/Nation → proper deterministic entity key; Understat = live xG/creation; EA FC 26 = 16,228 players
