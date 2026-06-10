@@ -1,0 +1,33 @@
+# Data (too large for git)
+data/raw/
+data/processed/
+models/
+# NOTE: data/predictions/ is intentionally TRACKED — the lock-in mechanism
+# (D012) depends on predictions being git-committed before kickoff.
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml

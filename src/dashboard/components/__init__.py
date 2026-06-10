@@ -1,0 +1,1 @@
+"""WorldCupIQ module."""
