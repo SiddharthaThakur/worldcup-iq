@@ -137,3 +137,25 @@ Per-year model Brier: 2018 = 0.2081, 2022 = 0.2241 (2022 was upset-heavy for the
 **Decision:** All model-vs-market scoring uses the 90-minute result. Knockout matches decided in extra time count as draws for evaluation.
 
 **Rationale:** 1X2 odds settle on 90 minutes. Scoring the model on post-ET results while the market is implicitly scored on 90-minute results would bias the comparison. The source of 90-minute scores is the odds workbook (HGFT/AGFT columns); our results dataset (martj42) records post-ET scores and is used for training only.
+
+---
+
+## D015: Annual Elo Mean Reversion Removed (2026-06-10 — selected on backtest only, supersedes D013 numbers)
+
+**Decision:** `MEAN_REVERSION_FACTOR` = 0 (was 1/3 per year).
+
+**Trigger:** First full-data simulation ranked Morocco #1 (19%) and France 13th (2.5%) — an artifact, not a finding. Diagnosis: the January reset compressed all ratings by 1/3, then teams with competitive January-2026 matches (AFCON participants) re-earned rating while teams with only friendlies stayed compressed.
+
+**Selection procedure (no 2026 leakage):** reversion ∈ {0, 0.1, 1/3} evaluated on the pooled 2018+2022 leak-free backtest. Brier: 0.2054 / 0.2088 / 0.2160. Zero reversion won; adopted BEFORE any 2026 match was scored.
+
+**Updated champion's record (90-min scoring, pooled 128):** model Brier **0.2056**, RPS 0.2210, log-loss 1.0490 vs market Brier 0.1904. Gap to market narrowed from 0.026 to 0.015. Challenger gate (D009) now references Brier 0.2056.
+
+**Refitted live params** (n=15,812): intercept=0.1273, elo_coef=0.2364, home_adv=0.2601, rho=-0.0348. (elo_coef per-point is smaller because ratings now spread wider without annual compression.)
+
+**First headline output (10,000 sims):** ESP 25.9%, ARG 22.6%, FRA 9.4%, BRA 5.5%, ENG 5.2%, COL 4.3%, MAR 3.3%, MEX 2.5% (host boost). Model is more top-heavy than the market consensus — expected for Elo-family ratings; tracked as part of live evaluation.
+
+---
+
+## D016: Simulator Home-Advantage Orientation Bug Fixed (2026-06-10)
+
+**Finding:** the scaffolded simulator applied home advantage to whichever team was passed FIRST to the match function; when the host was the second team (e.g. "South Africa vs Mexico"), the boost went to the wrong side. Fixed with `simulate_match_oriented` (host always gets the fitted home_adv regardless of argument order); regression tests added. Host teams are treated as at-home in all their matches (group fixtures genuinely are; knockout venues are an approximation).

@@ -137,7 +137,9 @@ class TestSimulator:
     def test_knockout_always_produces_winner(self, fitted_params):
         rng = np.random.default_rng(4)
         config = SimulationConfig(seed=4)
-        outcomes = [resolve_knockout(1600, 1600, fitted_params, rng, config)
+        strengths = {"AAA": 1600.0, "BBB": 1600.0}
+        outcomes = [resolve_knockout("AAA", "BBB", strengths, set(),
+                                     fitted_params, rng, config)
                     for _ in range(200)]
         assert all(isinstance(o, bool) for o in outcomes)
         # Equal teams should split roughly evenly
@@ -147,7 +149,9 @@ class TestSimulator:
     def test_stronger_team_advances_more_often(self, fitted_params):
         rng = np.random.default_rng(5)
         config = SimulationConfig(seed=5)
-        wins = sum(resolve_knockout(1850, 1450, fitted_params, rng, config)
+        strengths = {"AAA": 1850.0, "BBB": 1450.0}
+        wins = sum(resolve_knockout("AAA", "BBB", strengths, set(),
+                                    fitted_params, rng, config)
                    for _ in range(500))
         assert wins / 500 > 0.65
 

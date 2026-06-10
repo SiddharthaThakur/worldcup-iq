@@ -74,22 +74,54 @@ def simulate_group_match(
     return int(home_goals), int(away_goals)
 
 
+def simulate_match_oriented(
+    team_a: str, team_b: str,
+    strengths: dict[str, float],
+    host_teams: set[str],
+    params: DixonColesParams,
+    rng: np.random.Generator,
+) -> tuple[int, int]:
+    """Sample a scoreline with home advantage applied to the HOST team.
+
+    The fitted home_adv parameter boosts the first (home) argument of the
+    goal model — so when the host is team_b, we simulate with the host
+    first and flip the scoreline back. Without this, home advantage would
+    go to whichever team happened to be listed first.
+    """
+    a_host, b_host = team_a in host_teams, team_b in host_teams
+    if b_host and not a_host:
+        gb, ga = simulate_group_match(
+            strengths[team_b], strengths[team_a], params, rng, neutral=False)
+        return ga, gb
+    neutral = not a_host  # both hosts can't meet in a group; treat as a-home
+    return simulate_group_match(
+        strengths[team_a], strengths[team_b], params, rng, neutral=neutral)
+
+
 def resolve_knockout(
-    strength_a: float, strength_b: float,
+    team_a: str, team_b: str,
+    strengths: dict[str, float],
+    host_teams: set[str],
     params: DixonColesParams, rng: np.random.Generator,
-    config: SimulationConfig, neutral: bool = True,
+    config: SimulationConfig,
 ) -> bool:
     """Simulate a knockout match. Returns True if team A advances.
 
     90 minutes → if draw, extra time (reduced goal rate) → if still
     level, penalties (near-coin-flip with small strength edge).
     """
-    hg, ag = simulate_group_match(strength_a, strength_b, params, rng, neutral)
+    strength_a, strength_b = strengths[team_a], strengths[team_b]
+    hg, ag = simulate_match_oriented(team_a, team_b, strengths, host_teams, params, rng)
     if hg != ag:
         return hg > ag
+    neutral = not (team_a in host_teams or team_b in host_teams)
 
-    # Extra time: same strength ratio, reduced goal expectation
-    lam_a, lam_b = strengths_to_expected_goals(strength_a, strength_b, params, neutral)
+    # Extra time: same strength ratio, reduced goal expectation.
+    # Orient home advantage to the host, mirroring simulate_match_oriented.
+    if team_b in host_teams and team_a not in host_teams:
+        lam_b, lam_a = strengths_to_expected_goals(strength_b, strength_a, params, False)
+    else:
+        lam_a, lam_b = strengths_to_expected_goals(strength_a, strength_b, params, neutral)
     et_a = rng.poisson(lam_a * config.extra_time_goal_factor)
     et_b = rng.poisson(lam_b * config.extra_time_goal_factor)
     if et_a != et_b:
@@ -120,8 +152,7 @@ def play_group(
     for i in range(len(teams)):
         for j in range(i + 1, len(teams)):
             a, b = teams[i], teams[j]
-            neutral = not (a in host_teams or b in host_teams)
-            ga, gb = simulate_group_match(strengths[a], strengths[b], params, rng, neutral)
+            ga, gb = simulate_match_oriented(a, b, strengths, host_teams, params, rng)
             table[a]["gf"] += ga; table[a]["gd"] += ga - gb
             table[b]["gf"] += gb; table[b]["gd"] += gb - ga
             if ga > gb:
@@ -213,10 +244,7 @@ def simulate_tournament_once(
             reached[b] = stage
         winners = []
         for a, b in current:
-            a_wins = resolve_knockout(
-                strengths[a], strengths[b], params, rng, config,
-                neutral=not (a in host_teams or b in host_teams),
-            )
+            a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
             winners.append(a if a_wins else b)
         if stage == "final":
             reached[winners[0]] = "champion"
