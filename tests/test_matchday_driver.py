@@ -25,7 +25,17 @@ def opening_day():
 
 def test_opening_day_has_fixtures(opening_day):
     preds, kickoffs = opening_day
-    assert len(preds) == 2  # MEX-RSA opener + KOR-CZE
+    # 2 matches (MEX-RSA opener + KOR-CZE) x 2 models (champion + baseline)
+    assert len(preds) == 4
+    assert {p["model_name"] for p in preds} == {
+        "composition_champion_v3", "elo_dixon_coles_v2"}
+
+
+def test_both_models_predict_each_match(opening_day):
+    preds, _ = opening_day
+    for mid in ("2026-06-11_MEX_RSA", "2026-06-11_KOR_CZE"):
+        models = {p["model_name"] for p in preds if p["match_id"] == mid}
+        assert models == {"composition_champion_v3", "elo_dixon_coles_v2"}
 
 
 def test_predictions_have_required_fields(opening_day):

@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Blend Promoted to Champion (D022); EA re-test significant (D021)
+- EA-based re-test (tight: real aggregator, confident club matches, bootstrap CIs): out-of-sample Brier improvement +0.0040, 95% CI [0.0018,0.0062] SIGNIFICANT; correlation 0.286 CI [0.243,0.329] straddles 0.30
+- Owner call: blend (λ=0.6×confidence) is now CHAMPION (v3); Elo baseline still locked+scored every match; lineup sensitivity still held; deviation from D009 letter documented
+- Champion sim: ESP 11.6%, ARG 11.6%, FRA 9.4%, BRA 8.9% (favorites pulled closer vs pure-Elo); lock-in now writes champion+baseline per match
+- 129 tests green. Next: Phase 4 attention model as challenger to the champion
+
 ## 2026-06-10 — Phase 3 Built + Validated: BORDERLINE FAIL, model held back (D020)
 - Player strength aggregator (corr 0.72 w/ Elo) + composition model (Elo bridge + confidence blend), both TDD
 - Validation gate on 7,101 held-out club games: blend IMPROVES Brier 0.2033→0.2001 at λ=0.4 (textbook U-shape), BUT correlation 0.293 < pre-registered 0.30 → FAILS by 0.007

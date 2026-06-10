@@ -241,6 +241,19 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 ---
 
+## D022: Blended Composition Model Promoted to Champion (2026-06-10 — owner decision)
+
+**Decision (project owner):** the Elo+player-composition blend (λ=0.6 × per-team confidence, EA-rating strength bridged to Elo scale) becomes the CHAMPION — the headline model for live lock-ins and champion-probability simulation. Phase 4's attention model becomes the challenger that must beat it. This supersedes D001's "Elo baseline is champion."
+
+**Basis:** D021's statistically-significant out-of-sample Brier improvement on club data (+0.0040, 95% CI [0.0018, 0.0062]). A deliberate, documented deviation from the strict letter of the D009 correlation gate (0.286 < 0.30), justified by the direct evidence outweighing a borderline proxy whose own CI straddles the bar.
+
+**Honesty constraints kept (non-negotiable):**
+- The **Elo baseline keeps being scored** on every match alongside the champion. Promotion does not end the comparison — if the simpler model wins live, we will say so.
+- **Lineup sensitivity stays HELD BACK.** D021 validated team-level strength, not the finer claim that swapping one player yields meaningful sensitivity. Needs separate per-player validation.
+- **Caveat surfaced:** the blend is validated on CLUB data. Its World Cup performance is still unproven (we lack historical international squad ratings to backtest it). The live 2026 scorecard is its real test. Lock-ins are versioned: June 11-13 were Elo-only (v1/v2); the composition champion is v3.
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
