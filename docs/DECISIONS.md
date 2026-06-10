@@ -159,3 +159,28 @@ Per-year model Brier: 2018 = 0.2081, 2022 = 0.2241 (2022 was upset-heavy for the
 ## D016: Simulator Home-Advantage Orientation Bug Fixed (2026-06-10)
 
 **Finding:** the scaffolded simulator applied home advantage to whichever team was passed FIRST to the match function; when the host was the second team (e.g. "South Africa vs Mexico"), the boost went to the wrong side. Fixed with `simulate_match_oriented` (host always gets the fitted home_adv regardless of argument order); regression tests added. Host teams are treated as at-home in all their matches (group fixtures genuinely are; knockout venues are an approximation).
+
+---
+
+## D017: Flat K-Factor Replaces the Tournament-Importance Ladder (2026-06-10 — backtest-selected, pre-2026-scoring)
+
+**Decision:** All matches update Elo with K=25. The conventional ladder (WC=60, Euro=50, ..., Friendly=15) is removed.
+
+**Experiment (decision rule pre-stated: adopt only if pooled Brier improves > 0.003 with RPS agreeing):**
+
+| Variant | Brier | RPS |
+|---|---|---|
+| current ladder | 0.2054 | 0.2223 |
+| ladder × 1.5 (steeper) | 0.2075 | 0.2253 |
+| ladder flattened halfway | 0.2026 | 0.2179 |
+| **flat K** | **0.2009-0.2012** | **0.2149-0.2156** |
+
+Steeper weighting is monotonically worse: high-K tournaments make ratings overreact to small-sample, high-variance knockout results. Level sweep K∈{20,25,30,35,40} is a plateau (Brier 0.2009-0.2012) — the gain comes from removing the ladder, not tuning the level. K=25 chosen as plateau center.
+
+**Updated champion's record (90-min scoring, pooled 128): model Brier 0.2009, RPS 0.2132** vs market 0.1904/0.2012. Cumulative gap to market: 0.026 → 0.0105 across D015+D017. Challenger gate (D009) now references Brier 0.2009.
+
+**Refitted live params** (n=15,812): intercept=0.1217, elo_coef=0.2408, home_adv=0.2585, rho=-0.0354.
+
+**New headline (10K sims):** ARG 22.2%, ESP 17.1%, BRA 9.2%, FRA 7.3%, COL 5.7% — materially closer to market consensus than the D015 table.
+
+**Model naming:** lock-ins from June 14 onward are `elo_dixon_coles_v2`; the June 11-13 locks remain v1 (importance-weighted K) and are scored as v1.

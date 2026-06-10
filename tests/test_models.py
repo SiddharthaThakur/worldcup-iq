@@ -43,9 +43,11 @@ class TestEloSystem:
         total_after = elo.get_rating("ARG") + elo.get_rating("BRA")
         assert abs(total_before - total_after) < 1e-10
 
-    def test_k_factor_world_cup_higher(self):
+    def test_k_factor_is_flat(self):
+        # Flat K beat the importance-weighted ladder on the 2018+2022
+        # backtest (D017): high-K tournaments overreact to small samples
         elo = EloSystem()
-        assert elo.get_k_factor("FIFA World Cup") > elo.get_k_factor("Friendly")
+        assert elo.get_k_factor("FIFA World Cup") == elo.get_k_factor("Friendly")
 
     def test_expected_score_equal_teams(self):
         elo = EloSystem()

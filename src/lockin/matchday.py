@@ -24,7 +24,9 @@ from src.data.wc2026 import load_wc2026
 from src.models.dixon_coles import DixonColesParams, predict_match
 from src.models.elo import EloSystem
 
-MODEL_NAME = "elo_dixon_coles_v1"
+# v2: flat K=25 rating system (D017). v1 locks (June 11-13) used the
+# importance-weighted K ladder and remain valid as v1 predictions.
+MODEL_NAME = "elo_dixon_coles_v2"
 
 
 def build_matchday_predictions(matchday: str) -> tuple[list[dict], dict[str, str]]:

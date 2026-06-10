@@ -5,9 +5,9 @@
     "model": {
       "model": "elo_dixon_coles_2018",
       "n_matches": 64,
-      "brier_score": 0.2049,
-      "log_loss": 1.0249,
-      "rps": 0.2189,
+      "brier_score": 0.1996,
+      "log_loss": 0.9987,
+      "rps": 0.2105,
       "accuracy": 0.5312
     },
     "market": {
@@ -24,10 +24,10 @@
     "model": {
       "model": "elo_dixon_coles_2022",
       "n_matches": 64,
-      "brier_score": 0.2063,
-      "log_loss": 1.0624,
-      "rps": 0.2231,
-      "accuracy": 0.4844
+      "brier_score": 0.2022,
+      "log_loss": 1.0403,
+      "rps": 0.216,
+      "accuracy": 0.5156
     },
     "market": {
       "model": "market_avg_devig_2022",
@@ -42,10 +42,10 @@
     "model": {
       "model": "elo_dixon_coles_pooled",
       "n_matches": 128,
-      "brier_score": 0.2056,
-      "log_loss": 1.0436,
-      "rps": 0.221,
-      "accuracy": 0.5078
+      "brier_score": 0.2009,
+      "log_loss": 1.0195,
+      "rps": 0.2132,
+      "accuracy": 0.5234
     },
     "market": {
       "model": "market_pooled",

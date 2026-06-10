@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — K-Factor Experiment: Flat K=25 Beats the Importance Ladder (D017)
+- User-prompted question ("are tournaments weighted more?") led to backtest experiment: flat K beats WC=60 ladder, Brier 0.2054 → 0.2009; steeper = monotonically worse
+- Gap to market now 0.0105 (was 0.026 at first fit); new champion table: ARG 22%, ESP 17%, BRA 9% — closer to market consensus
+- Lock-ins from June 14 are elo_dixon_coles_v2; June 11-13 locks remain v1
+- Understat works via new POST endpoint (2025/26 xG confirmed); FBRef + SoFIFA 403 plain scripts — Wayback snapshots verified as clean fallback
+
 ## 2026-06-10 — Phase 2 Complete: Simulator, Champion Odds, First Live Lock-Ins
 - Fixed simulator home-advantage orientation bug (D016); removed Elo mean reversion via backtest experiment (D015) — pooled Brier 0.2161 → 0.2056
 - First champion table (10K sims): ESP 25.9%, ARG 22.6%, FRA 9.4%, BRA 5.5%, ENG 5.2%
