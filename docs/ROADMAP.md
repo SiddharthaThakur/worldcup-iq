@@ -43,7 +43,7 @@ broken; stop and debug before anything else.
 ---
 
 ## Phase 2: Simulator + Market Layer + Lock-In
-**Status: SCAFFOLDED (code written, untested against real data)**
+**Status: COMPLETE (2026-06-10) — daily lock-in is now an operational routine**
 
 - [ ] Validate tournament simulator: 12 groups, third-place advancement,
       knockout ET/penalty resolution (structural bracket per D010)

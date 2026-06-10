@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Phase 2 Complete: Simulator, Champion Odds, First Live Lock-Ins
+- Fixed simulator home-advantage orientation bug (D016); removed Elo mean reversion via backtest experiment (D015) — pooled Brier 0.2161 → 0.2056
+- First champion table (10K sims): ESP 25.9%, ARG 22.6%, FRA 9.4%, BRA 5.5%, ENG 5.2%
+- Lock-in flow live: June 11 + 12 predictions git-committed pre-kickoff (a604c75, 52b0749) with conservative midnight-UTC kickoff rule
+- 77 tests green. Next: Phase 3 — player data (needs Kaggle creds or FBRef scrape), entity resolution
+
 ## 2026-06-10 — Phase 1 Complete: Fitted Baseline + Market Benchmark
 - Real data loaded: 49K results (GitHub mirror, no Kaggle needed), WC odds workbook (football-data.co.uk — also covers 2018/2022/2014!), 2026 fixtures+groups (derived from fixture graph), 48 squads from Wikipedia (1,246 players)
 - Live params fitted (D013); leak-free backtest pooled Brier 0.2161 vs market 0.1904 — H2 holds, kill criterion passed
