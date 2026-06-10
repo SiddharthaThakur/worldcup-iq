@@ -1,0 +1,14 @@
+{
+  "updated": "2026-06-10",
+  "n_completed": 0,
+  "models": {
+    "baseline_elo": {
+      "n": 0,
+      "brier": null
+    },
+    "champion_plus": {
+      "n": 0,
+      "brier": null
+    }
+  }
+}
