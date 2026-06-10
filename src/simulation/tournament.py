@@ -141,18 +141,29 @@ def play_group(
     host_teams: set[str],
     params: DixonColesParams,
     rng: np.random.Generator,
+    completed: dict | None = None,
 ) -> GroupResult:
     """Simulate all 6 matches of a 4-team group and return final standings.
+
+    `completed` maps frozenset({team_a, team_b}) -> {team_a: goals, team_b:
+    goals} for matches already PLAYED. Those use their real score; only the
+    remaining matches are simulated. This is how live odds sharpen toward
+    reality as the group stage unfolds.
 
     Tiebreakers (FIFA): points → goal difference → goals scored → random
     (we skip head-to-head and fair play for simulation tractability; this
     slightly misorders rare three-way ties — documented limitation).
     """
+    completed = completed or {}
     table = {t: {"team": t, "points": 0, "gd": 0, "gf": 0} for t in teams}
     for i in range(len(teams)):
         for j in range(i + 1, len(teams)):
             a, b = teams[i], teams[j]
-            ga, gb = simulate_match_oriented(a, b, strengths, host_teams, params, rng)
+            real = completed.get(frozenset({a, b}))
+            if real is not None:
+                ga, gb = real[a], real[b]
+            else:
+                ga, gb = simulate_match_oriented(a, b, strengths, host_teams, params, rng)
             table[a]["gf"] += ga; table[a]["gd"] += ga - gb
             table[b]["gf"] += gb; table[b]["gd"] += gb - ga
             if ga > gb:
@@ -223,13 +234,14 @@ def simulate_tournament_once(
     params: DixonColesParams,
     rng: np.random.Generator,
     config: SimulationConfig,
+    completed: dict | None = None,
 ) -> dict[str, str]:
     """One full tournament simulation. Returns {team: furthest_stage_reached}."""
     reached: dict[str, str] = {t: "group" for ts in groups.values() for t in ts}
 
     group_results = []
     for gname, teams in groups.items():
-        gr = play_group(teams, strengths, host_teams, params, rng)
+        gr = play_group(teams, strengths, host_teams, params, rng, completed=completed)
         gr.group = gname
         group_results.append(gr)
 
@@ -260,10 +272,12 @@ def run_simulation(
     host_teams: set[str] | None = None,
     params: DixonColesParams | None = None,
     config: SimulationConfig | None = None,
+    completed: dict | None = None,
 ) -> pd.DataFrame:
     """Run the full Monte Carlo and return per-team advancement probabilities.
 
-    Returns a DataFrame with columns:
+    `completed` (optional) fixes already-played group games so the odds
+    reflect real results so far. Returns a DataFrame with columns:
         team, p_r32, p_r16, p_qf, p_sf, p_final, p_champion
     sorted by champion probability.
     """
@@ -276,7 +290,8 @@ def run_simulation(
     counts: dict[str, np.ndarray] = defaultdict(lambda: np.zeros(len(stage_order)))
 
     for _ in range(config.n_sims):
-        reached = simulate_tournament_once(groups, strengths, host_teams, params, rng, config)
+        reached = simulate_tournament_once(groups, strengths, host_teams, params, rng,
+                                           config, completed=completed)
         for team, stage in reached.items():
             idx = stage_order.index(stage)
             counts[team][: idx + 1] += 1  # reaching SF implies reaching QF, etc.

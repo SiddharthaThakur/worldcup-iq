@@ -16,6 +16,8 @@ import pandas as pd
 
 CSV = Path("data/predictions/group_stage_champion_plus.csv")
 CHAMP_CSV = Path("data/predictions/champion_plus_probabilities.csv")
+HISTORY = Path("data/predictions/champion_history.csv")
+SCORECARD = Path("data/predictions/scorecard.json")
 OUT = Path("dashboard/predictions.html")
 
 
@@ -34,12 +36,32 @@ def _records() -> list[dict]:
 
 
 def _contenders() -> list[dict]:
+    """Top-12 title chances. Uses the daily history (with day-over-day
+    movement) if it exists, else the static pre-tournament file."""
+    if HISTORY.exists():
+        h = pd.read_csv(HISTORY)
+        dates = sorted(h["date"].unique())
+        today = h[h["date"] == dates[-1]].set_index("team")["p_champion"]
+        prev = (h[h["date"] == dates[-2]].set_index("team")["p_champion"]
+                if len(dates) >= 2 else None)
+        top = today.sort_values(ascending=False).head(12)
+        out = []
+        for team, champ in top.items():
+            mv = (float(champ - prev[team]) if prev is not None and team in prev
+                  else None)
+            out.append({"team": team, "champ": float(champ), "move": mv})
+        return out
     if not CHAMP_CSV.exists():
         return []
     df = pd.read_csv(CHAMP_CSV).head(12)
-    return [{"team": r["team"], "champ": float(r["p_champion"]),
-             "final": float(r["p_final"]), "sf": float(r["p_sf"])}
+    return [{"team": r["team"], "champ": float(r["p_champion"]), "move": None}
             for _, r in df.iterrows()]
+
+
+def _scorecard() -> dict:
+    if SCORECARD.exists():
+        return json.loads(SCORECARD.read_text())
+    return {}
 
 
 HTML = """<!DOCTYPE html>
@@ -80,7 +102,13 @@ HTML = """<!DOCTYPE html>
   .cont .track{flex:1;background:#0b0f14;border:1px solid #30363d;border-radius:5px;height:20px;overflow:hidden}
   .cont .fill{display:block;height:100%;background:linear-gradient(90deg,#2f81f7,#56a3ff);border-radius:4px;min-width:3px}
   .cont .v{width:48px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-  .axis{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin:2px 0 8px;padding:0 96px 0 64px}
+  .cont .mv{width:54px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+  .up{color:#3fb950} .down{color:#f85149} .flat{color:var(--mut)}
+  .axis{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin:2px 0 8px;padding:0 150px 0 64px}
+  .score{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 4px}
+  .scard{background:var(--card);border:1px solid #30363d;border-radius:10px;padding:12px 16px;min-width:150px}
+  .scard .mn{font-size:12px;color:var(--mut)} .scard .bv{font-size:24px;font-weight:800;margin:2px 0}
+  .scard .ng{font-size:11px;color:var(--mut)} .scard.best{border-color:#2f81f7}
   .foot{color:var(--mut);font-size:11px;margin-top:28px;line-height:1.6;border-top:1px solid #21262d;padding-top:14px}
 </style>
 </head>
@@ -89,9 +117,42 @@ HTML = """<!DOCTYPE html>
 <script type="text/babel">
 const DATA = __DATA__;
 const CONTENDERS = __CONTENDERS__;
+const SCORECARD = __SCORECARD__;
 const GROUPS = [...new Set(DATA.map(d=>d.group))].sort();
 const pct = x => Math.round(x*100);
 const pct1 = x => (x*100).toFixed(1);
+
+function Move({m}){
+  if(m===null||m===undefined) return <span className="mv flat">·</span>;
+  const p=(Math.abs(m)*100).toFixed(1);
+  if(m>0.0005) return <span className="mv up">▲ {p}</span>;
+  if(m<-0.0005) return <span className="mv down">▼ {p}</span>;
+  return <span className="mv flat">–</span>;
+}
+
+function Scorecard(){
+  const sc = SCORECARD;
+  if(!sc.models || !sc.n_completed) return null;
+  const names = {champion_plus:'Our model (champion+)', baseline_elo:'Simple Elo baseline', market:'Bookmakers'};
+  const entries = Object.entries(sc.models).filter(([k,v])=>v.brier!=null);
+  if(!entries.length) return null;
+  const best = Math.min(...entries.map(([k,v])=>v.brier));
+  return (
+    <div>
+      <div className="sec">📊 How accurate is it so far? <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>({sc.n_completed} games played)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>Brier score — average error of the probabilities. Lower is better (0 = perfect, 0.67 = a coin-flip). The honest test: does our model beat the simple baseline, and can either match the bookmakers?</div>
+      <div className="score">
+        {entries.map(([k,v])=>(
+          <div className={'scard'+(v.brier===best?' best':'')} key={k}>
+            <div className="mn">{names[k]||k}</div>
+            <div className="bv">{v.brier.toFixed(3)}</div>
+            <div className="ng">{v.n} games{v.brier===best?' · leading':''}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Contenders(){
   if(!CONTENDERS.length) return null;
@@ -108,8 +169,11 @@ function Contenders(){
           <span className="nm">{c.team}</span>
           <span className="track"><span className="fill" style={{width:Math.min(100,c.champ/SCALE*100)+'%'}}></span></span>
           <span className="v">{pct1(c.champ)}%</span>
+          <Move m={c.move}/>
         </div>
       ))}
+      {CONTENDERS.some(c=>c.move!=null) &&
+        <div style={{color:'var(--mut)',fontSize:11,marginTop:6}}>▲▼ = change since yesterday's update.</div>}
     </div>
   );
 }
@@ -152,6 +216,7 @@ function App(){
         bookmakers afterwards — it doesn't pretend to beat the market, it measures honestly whether it does.
       </div>
       <Contenders/>
+      <Scorecard/>
       <div className="sec">Group-stage match predictions</div>
       <div className="legend">
         <span><span className="dot" style={{background:'var(--home)'}}></span>Home / first team</span>
@@ -183,7 +248,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 def main() -> Path:
     html = (HTML
             .replace("__DATA__", json.dumps(_records()))
-            .replace("__CONTENDERS__", json.dumps(_contenders())))
+            .replace("__CONTENDERS__", json.dumps(_contenders()))
+            .replace("__SCORECARD__", json.dumps(_scorecard())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     # Also write index.html at the repo root so GitHub Pages serves it at
