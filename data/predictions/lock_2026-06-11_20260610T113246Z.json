@@ -1,0 +1,45 @@
+{
+  "locked_at_utc": "2026-06-10T11:32:46.876599+00:00",
+  "matchday": "2026-06-11",
+  "params_file_sha256": "fc7bf8f131d9dbbc",
+  "predictions": [
+    {
+      "home_team": "MEX",
+      "away_team": "RSA",
+      "home_xg": 2.276,
+      "away_xg": 0.735,
+      "prob_home_win": 0.7187,
+      "prob_draw": 0.1794,
+      "prob_away_win": 0.1019,
+      "most_likely_score": [
+        2,
+        0
+      ],
+      "match_id": "2026-06-11_MEX_RSA",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "A",
+      "neutral": false,
+      "home_elo": 1817.9,
+      "away_elo": 1633.9
+    },
+    {
+      "home_team": "KOR",
+      "away_team": "CZE",
+      "home_xg": 1.591,
+      "away_xg": 0.811,
+      "prob_home_win": 0.5545,
+      "prob_draw": 0.2591,
+      "prob_away_win": 0.1864,
+      "most_likely_score": [
+        1,
+        0
+      ],
+      "match_id": "2026-06-11_KOR_CZE",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "A",
+      "neutral": true,
+      "home_elo": 1800.0,
+      "away_elo": 1657.5
+    }
+  ]
+}
