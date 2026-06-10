@@ -127,8 +127,8 @@ function Match({m}){
         <div style={{width:pct(m.pAway)+'%',background:'var(--away)'}}>{pct(m.pAway)}%</div>
       </div>
       <div className="meta">
-        <span>Most likely: <b>{m.likely}</b></span>
-        <span>Expected goals: <b>{xgRounded}</b></span>
+        <span>Predicted score: <b>{xgRounded}</b></span>
+        <span>Expected goals: <b>{m.xg}</b></span>
         {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
         {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
       </div>
