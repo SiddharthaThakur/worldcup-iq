@@ -274,6 +274,20 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 ---
 
+## D024: Champion+ Edges — Ensemble, Altitude, Rest/Travel (2026-06-10)
+
+**Three free edges layered onto the champion (owner-requested after a brainstorm):**
+
+1. **Elo ensemble** — average our Elo with an independent 2026 Elo system (Kaggle `afonsofernandescruz`, covers all 48 teams), after rescaling theirs to our mean/std. Cheap variance reduction; standard forecasting practice.
+2. **Altitude** — teams not altitude-adapted are penalized at high venues (Mexico City 2,240m: −59 Elo; Guadalajara/Zapopan 1,560m: small). Adapted nations (MEX, BOL, ECU, COL, PER) exempt. 7 of 72 group games affected. Physiologically documented (McSharry, BMJ 2007).
+3. **Rest/travel** — Elo nudge from the rest-day and travel-distance DIFFERENTIAL between the two teams (haversine over the 16 host-city coordinates). Matters more this WC than any prior — it spans a continent.
+
+**Pipeline:** rating = [ensemble(our Elo, indep Elo) + composition blend] + altitude + rest/travel → Dixon-Coles.
+
+**HONESTY NOTE (important):** unlike the model core (everything fitted, D007), the altitude and rest/travel COEFFICIENTS are literature-informed, NOT fitted — there is no altitude/rest/travel signal in our results file to fit on. They are deliberately MODEST and capped (altitude ≤ ~59 Elo, rest ≤ ±24 Elo, travel ≤ ~30 Elo) so they sharpen specific matches without dominating. The ensemble, by contrast, is principled and parameter-light. These edges are expected to recover only a fraction of the ~0.01 Brier gap to the market and reduce variance; they do not change the thesis. Champion+ is the headline prediction model; the plain champion and Elo baseline remain scored alongside it.
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
