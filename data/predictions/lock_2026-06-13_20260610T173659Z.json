@@ -1,0 +1,83 @@
+{
+  "locked_at_utc": "2026-06-10T17:36:59.361967+00:00",
+  "matchday": "2026-06-13",
+  "params_file_sha256": "fc7bf8f131d9dbbc",
+  "predictions": [
+    {
+      "home_team": "QAT",
+      "away_team": "SUI",
+      "home_xg": 0.636,
+      "away_xg": 2.028,
+      "prob_home_win": 0.1027,
+      "prob_draw": 0.1995,
+      "prob_away_win": 0.6978,
+      "most_likely_score": [
+        0,
+        2
+      ],
+      "match_id": "2026-06-13_QAT_SUI",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "B",
+      "neutral": true,
+      "home_elo": 1559.4,
+      "away_elo": 1804.6
+    },
+    {
+      "home_team": "BRA",
+      "away_team": "MAR",
+      "home_xg": 1.243,
+      "away_xg": 1.038,
+      "prob_home_win": 0.4044,
+      "prob_draw": 0.2924,
+      "prob_away_win": 0.3032,
+      "most_likely_score": [
+        1,
+        1
+      ],
+      "match_id": "2026-06-13_BRA_MAR",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "C",
+      "neutral": true,
+      "home_elo": 1925.2,
+      "away_elo": 1887.2
+    },
+    {
+      "home_team": "HTI",
+      "away_team": "SCO",
+      "home_xg": 1.153,
+      "away_xg": 1.118,
+      "prob_home_win": 0.3612,
+      "prob_draw": 0.295,
+      "prob_away_win": 0.3438,
+      "most_likely_score": [
+        1,
+        1
+      ],
+      "match_id": "2026-06-13_HTI_SCO",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "C",
+      "neutral": true,
+      "home_elo": 1673.3,
+      "away_elo": 1666.8
+    },
+    {
+      "home_team": "AUS",
+      "away_team": "TUR",
+      "home_xg": 1.204,
+      "away_xg": 1.071,
+      "prob_home_win": 0.3861,
+      "prob_draw": 0.2939,
+      "prob_away_win": 0.32,
+      "most_likely_score": [
+        1,
+        1
+      ],
+      "match_id": "2026-06-13_AUS_TUR",
+      "model_name": "elo_dixon_coles_v1",
+      "group": "D",
+      "neutral": true,
+      "home_elo": 1809.5,
+      "away_elo": 1784.7
+    }
+  ]
+}
