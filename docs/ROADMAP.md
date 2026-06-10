@@ -23,7 +23,7 @@ a model's first lock-in are backtest data for that model, never predictions.
 ---
 
 ## Phase 1: Foundation
-**Status: NOT STARTED**
+**Status: COMPLETE (2026-06-10) — see D013 for backtest numbers**
 
 - [ ] Load international results (Kaggle martj42), team alias resolution
 - [ ] Load 2026 fixtures, groups, 26-man squads
