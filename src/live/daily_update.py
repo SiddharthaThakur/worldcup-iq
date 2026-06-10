@@ -39,6 +39,7 @@ LOCKED = PRED / "locked_predictions.csv"          # all models, all 72 games
 HISTORY = PRED / "champion_history.csv"           # daily odds snapshots
 SCORECARD = PRED / "scorecard.json"               # running accuracy
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
+TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
 
 def _today() -> str:
@@ -120,6 +121,10 @@ def _completed_group_games(results: pd.DataFrame, wc) -> tuple[dict, dict]:
 
 
 def update(n_sims: int = 20000) -> dict:
+    if _today() > TOURNAMENT_OVER_AFTER:
+        print(f"The 2026 World Cup is over (after {TOURNAMENT_OVER_AFTER}); "
+              "daily updates have stopped. Final state is preserved.")
+        return {"stopped": True, "n_completed": None}
     if not LOCKED.exists():
         generate_locked_predictions()
     locked = pd.read_csv(LOCKED)
@@ -183,6 +188,9 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     out = update(n_sims=args.sims)
+    if out.get("stopped"):
+        raise SystemExit(0)
+
     print(f"Updated {out['n_completed']} completed games.")
     if out["scorecard"]["models"]:
         for mdl, s in out["scorecard"]["models"].items():

@@ -19,19 +19,34 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      - name: Stop after the World Cup (final is 2026-07-19)
+        id: window
+        run: |
+          if [ "$(date -u +%Y%m%d)" -gt "20260726" ]; then
+            echo "The 2026 World Cup is over — daily updates have stopped."
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.window.outputs.active == 'true'
 
       - uses: actions/setup-python@v5
+        if: steps.window.outputs.active == 'true'
         with:
           python-version: "3.12"
 
       - name: Install lightweight deps
+        if: steps.window.outputs.active == 'true'
         run: pip install pandas numpy scipy pyarrow rapidfuzz python-dateutil
 
       - name: Run daily update (re-pull, re-sim, score, rebuild page)
+        if: steps.window.outputs.active == 'true'
         run: python -m src.live.daily_update --sims 20000
 
       - name: Commit & push refreshed page and data
+        if: steps.window.outputs.active == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

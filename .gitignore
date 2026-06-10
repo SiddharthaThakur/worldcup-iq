@@ -1,7 +1,8 @@
-# Data (too large for git)
-data/raw/
-data/processed/
-models/
+# Data (too large for git) — anchored to repo root so src/models/ etc.
+# are NOT ignored (a bare "models/" would match src/models/ too)
+/data/raw/
+/data/processed/
+/models/
 # NOTE: data/predictions/ is intentionally TRACKED — the lock-in mechanism
 # (D012) depends on predictions being git-committed before kickoff.
 
