@@ -18,20 +18,59 @@ CSV = Path("data/predictions/group_stage_champion_plus.csv")
 CHAMP_CSV = Path("data/predictions/champion_plus_probabilities.csv")
 HISTORY = Path("data/predictions/champion_history.csv")
 SCORECARD = Path("data/predictions/scorecard.json")
+LOCKED = Path("data/predictions/locked_predictions.csv")
 OUT = Path("dashboard/predictions.html")
 
 
+def _actual_results() -> dict:
+    """match_id -> (home_goals, away_goals, result) for played 2026 games."""
+    try:
+        from src.data.results_loader import load_processed_results
+        res = load_processed_results()
+    except Exception:
+        return {}
+    played = res[(res["tournament"] == "FIFA World Cup")
+                 & (res["date"].dt.year == 2026) & res["home_score"].notna()]
+    out = {}
+    for _, r in played.iterrows():
+        hg, ag = int(r["home_score"]), int(r["away_score"])
+        out[r["match_id"]] = (hg, ag, "H" if hg > ag else "D" if hg == ag else "A")
+    return out
+
+
 def _records() -> list[dict]:
+    """Per-match cards. Upcoming games show the LIVE (daily-updating)
+    prediction; played games show the actual result plus our frozen,
+    pre-match LOCKED call and whether the favourite was right."""
     df = pd.read_csv(CSV)
+    actual = _actual_results()
+    locked = (pd.read_csv(LOCKED).set_index("match_id").to_dict("index")
+              if LOCKED.exists() else {})
     recs = []
     for _, r in df.iterrows():
         home, away = str(r["match"]).split(" v ")
-        recs.append({
+        mid = f"{r['date']}_{home}_{away}"
+        rec = {
             "date": r["date"], "group": r["group"], "home": home, "away": away,
             "city": r["city"], "pHome": float(r["p_home"]), "pDraw": float(r["p_draw"]),
             "pAway": float(r["p_away"]), "xg": r["xg"], "likely": r["likely"],
             "alt": float(r["alt_adj"]), "conf": float(r["conf"]),
-        })
+            "status": "upcoming",
+        }
+        if mid in actual:
+            hg, ag, res = actual[mid]
+            rec["status"] = "played"
+            rec["score"] = f"{hg}-{ag}"
+            rec["result"] = res
+            lk = locked.get(mid)
+            if lk:
+                lp = {"H": lk["champion_plus_H"], "D": lk["champion_plus_D"],
+                      "A": lk["champion_plus_A"]}
+                fav = max(lp, key=lp.get)
+                rec["lockHome"], rec["lockDraw"], rec["lockAway"] = lp["H"], lp["D"], lp["A"]
+                rec["lockProb"] = lp[res]          # prob we gave the actual outcome
+                rec["correct"] = (fav == res)      # did our favourite win?
+        recs.append(rec)
     return recs
 
 
@@ -87,6 +126,8 @@ HTML = """<!DOCTYPE html>
   .top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut);margin-bottom:8px}
   .teams{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:16px;margin-bottom:8px}
   .teams .vs{color:var(--mut);font-weight:500;font-size:12px}
+  .teams .ftscore{font-size:18px;font-weight:800;color:#fff;background:#1f6feb;padding:1px 12px;border-radius:6px}
+  .ok{color:#3fb950;font-weight:600} .miss{color:#f0883e;font-weight:600}
   .bar{display:flex;height:26px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:700;color:#fff}
   .bar>div{display:flex;align-items:center;justify-content:center;min-width:24px}
   .meta{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--mut);flex-wrap:wrap}
@@ -179,23 +220,41 @@ function Contenders(){
 }
 
 function Match({m}){
-  // Round each side's expected goals to a whole number (2.5 -> 3)
   const xgRounded = m.xg.split('-').map(s=>Math.round(parseFloat(s))).join('-');
+  const played = m.status === 'played';
   return (
     <div className="match">
-      <div className="top"><span>{m.date} · Group {m.group}</span><span>{m.city}</span></div>
-      <div className="teams"><span>{m.home}</span><span className="vs">vs</span><span>{m.away}</span></div>
-      <div className="bar">
-        <div style={{width:pct(m.pHome)+'%',background:'var(--home)'}}>{pct(m.pHome)}%</div>
-        <div style={{width:pct(m.pDraw)+'%',background:'var(--draw)'}}>{pct(m.pDraw)}%</div>
-        <div style={{width:pct(m.pAway)+'%',background:'var(--away)'}}>{pct(m.pAway)}%</div>
+      <div className="top">
+        <span>{m.date} · Group {m.group}</span>
+        <span>{played ? 'FULL-TIME' : m.city}</span>
       </div>
-      <div className="meta">
-        <span>Predicted score: <b>{xgRounded}</b></span>
-        <span>Expected goals: <b>{m.xg}</b></span>
-        {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
-        {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
+      <div className="teams">
+        <span>{m.home}</span>
+        {played ? <span className="ftscore">{m.score}</span> : <span className="vs">vs</span>}
+        <span>{m.away}</span>
       </div>
+      {played ? (
+        <div className="meta">
+          {m.lockProb!==undefined && <span>Our pre-match call gave this result <b>{pct(m.lockProb)}%</b></span>}
+          {m.correct!==undefined && (m.correct
+            ? <span className="ok">✓ favourite won</span>
+            : <span className="miss">✗ upset</span>)}
+        </div>
+      ) : (
+        <>
+          <div className="bar">
+            <div style={{width:pct(m.pHome)+'%',background:'var(--home)'}}>{pct(m.pHome)}%</div>
+            <div style={{width:pct(m.pDraw)+'%',background:'var(--draw)'}}>{pct(m.pDraw)}%</div>
+            <div style={{width:pct(m.pAway)+'%',background:'var(--away)'}}>{pct(m.pAway)}%</div>
+          </div>
+          <div className="meta">
+            <span>Predicted score: <b>{xgRounded}</b></span>
+            <span>Expected goals: <b>{m.xg}</b></span>
+            {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
+            {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
+          </div>
+        </>
+      )}
     </div>
   );
 }

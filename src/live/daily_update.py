@@ -132,6 +132,12 @@ def update(n_sims: int = 20000) -> dict:
     # 1-2. refresh results (re-download) + Elo
     refresh_results_file()
     results = build_results_dataset()
+
+    # Regenerate LIVE match predictions for upcoming games — these update
+    # daily as teams play (a team's later games shift once its rating moves).
+    # The pre-tournament LOCKED predictions stay frozen for honest scoring.
+    from src.models.run_champion_plus import main as regen_live_predictions
+    regen_live_predictions()
     wc = load_wc2026(save=False)
     elo = EloSystem().fit_from_results(results)
     params = DixonColesParams.load()
