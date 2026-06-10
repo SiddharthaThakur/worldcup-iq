@@ -2,6 +2,12 @@
 
 <!-- Newest entries at the top. 2-4 lines per entry. -->
 
+## 2026-06-10 — Player Data Secured: Kaggle + Understat + EA FC 26
+- Kaggle via gitignored .env from 1Password (user convention, not kaggle.json); pulled 3 datasets
+- Confirmed: Kaggle hubertsidorowicz stats are FULL 2025/26 season (June 1, fresher than my March Wayback FBRef) + Born/Nation → proper deterministic entity key; Understat = live xG/creation; EA FC 26 = 16,228 players
+- Honest finding (D018): EA FC 26 is NOT universal — Qatar 0, Jordan 2, Iran 6 players (unlicensed leagues). ~3-5 squads will be Elo-only with player model suppressed + reason stated
+- 95 tests green. Next: proper name+birthyear+nationality entity resolution across all sources, then Phase 3 model
+
 ## 2026-06-10 — K-Factor Experiment: Flat K=25 Beats the Importance Ladder (D017)
 - User-prompted question ("are tournaments weighted more?") led to backtest experiment: flat K beats WC=60 ladder, Brier 0.2054 → 0.2009; steeper = monotonically worse
 - Gap to market now 0.0105 (was 0.026 at first fit); new champion table: ARG 22%, ESP 17%, BRA 9% — closer to market consensus

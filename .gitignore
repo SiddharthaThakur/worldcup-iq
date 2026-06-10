@@ -31,3 +31,7 @@ Thumbs.db
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Secrets — pulled from 1Password at setup, never committed
+.env
+data/raw/kaggle/

@@ -162,6 +162,29 @@ Per-year model Brier: 2018 = 0.2081, 2022 = 0.2241 (2022 was upset-heavy for the
 
 ---
 
+## D018: EA FC 26 Is NOT a Universal Coverage Floor (2026-06-10 — supersedes D011's premise)
+
+**Finding (empirical):** D011 reversed an earlier dismissal of EA ratings, adopting them as the Tier-3 source that covers "all 48 squads incl. Uzbekistan, Jordan, Cape Verde." That premise is WRONG. EA FC 26 only licenses certain leagues, so players whose clubs are in unlicensed leagues are absent entirely:
+
+| Nation | Players in EA FC 26 |
+|---|---|
+| Korea Republic | 400 (fine — KOR squad gaps are name romanization, not absence) |
+| Iran | 6 |
+| Jordan | 2 |
+| Qatar | 0 |
+
+So EA FC 26 floors coverage for European/major-league players, but NOT for squads drawn from the Gulf, Iranian, Uzbek, and similar domestic leagues. Strict name+birth-year coverage of all 1,246 WC squad players is 66% (will rise with fuzzy+nationality matching, but the Qatar/Jordan/Iran zeros are a hard ceiling, not a matching artifact).
+
+**Consequence:** the CLAUDE.md "low confidence / refuse" tier is real and unavoidable for ~3-5 squads. The honest design response: the player-composition model carries a per-team data-coverage score; teams below a coverage threshold are predicted by the Elo baseline ONLY, with player-model predictions suppressed and the reason stated. We do not fabricate player strength for teams we can't see. This is a feature (epistemic honesty), not a failure — but it must be surfaced in the dashboard and write-up, not hidden.
+
+**Data sources confirmed available (2026-06-10):**
+- Basic per-90 stats, full 2025/26 season: Kaggle `hubertsidorowicz/football-players-stats-2025-2026` (2,839 Big-5 players, incl. Born + Nation → proper deterministic entity key). Supersedes the March-9 FBRef Wayback snapshot.
+- xG / creation (npxG, xGChain, xGBuildup): Understat live endpoint (2,775 Big-5 players). The Haaland-context decomposition lives here.
+- Universal-ish ratings: EA FC 26 (16,228 players) — with the coverage caveat above.
+- FBRef (Cloudflare-blocked to scripts) and SoFIFA: not needed; superseded by the above.
+
+---
+
 ## D017: Flat K-Factor Replaces the Tournament-Importance Ladder (2026-06-10 — backtest-selected, pre-2026-scoring)
 
 **Decision:** All matches update Elo with K=25. The conventional ladder (WC=60, Euro=50, ..., Friendly=15) is removed.

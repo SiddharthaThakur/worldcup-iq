@@ -28,6 +28,8 @@ dependencies = [
     # Utilities
     "tqdm>=4.66",
     "python-dateutil>=2.8",
+    "python-dotenv>=1.0",
+    "kaggle>=1.6",
 ]
 
 [project.optional-dependencies]
