@@ -93,17 +93,18 @@ const pct1 = x => (x*100).toFixed(1);
 
 function Contenders(){
   if(!CONTENDERS.length) return null;
-  const max = CONTENDERS[0].champ;
   return (
     <div>
-      <div className="sec">🏆 Who wins the World Cup? <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(20,000 simulated tournaments)</span></div>
+      <div className="sec">🏆 Chance of winning the World Cup <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(out of 100%, from 20,000 simulated tournaments)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>No team is a strong favourite — even the top side wins only about 1 in 8 times. The trophy is wide open.</div>
       {CONTENDERS.map(c=>(
         <div className="cont" key={c.team}>
           <span className="nm">{c.team}</span>
-          <span className="track"><span className="fill" style={{width:(c.champ/max*100)+'%'}}></span></span>
+          <span className="track"><span className="fill" style={{width:(c.champ*100)+'%'}}></span></span>
           <span className="v">{pct1(c.champ)}%</span>
         </div>
       ))}
+      <div style={{color:'var(--mut)',fontSize:11,marginTop:6}}>Bars show the real probability out of 100% — so they're short on purpose: it's a 48-team field.</div>
     </div>
   );
 }
@@ -178,6 +179,9 @@ def main() -> Path:
             .replace("__CONTENDERS__", json.dumps(_contenders())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
+    # Also write index.html at the repo root so GitHub Pages serves it at
+    # the site root (clean shareable URL).
+    Path("index.html").write_text(html)
     return OUT
 
 
