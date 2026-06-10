@@ -1,0 +1,8 @@
+{
+  "intercept": 0.12165301138305729,
+  "elo_coef": 0.24083253006534877,
+  "home_adv": 0.25846138340765756,
+  "rho": -0.03542132217630372,
+  "fitted_on": "post-2010 internationals (Kaggle martj42)",
+  "n_matches": 15812
+}

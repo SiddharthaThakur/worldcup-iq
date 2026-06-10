@@ -17,6 +17,7 @@ Run: python -m src.live.daily_update          # update + rebuild page
 
 import argparse
 import json
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,6 +43,19 @@ RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/m
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def refresh_results_file() -> None:
+    """Re-download the results CSV so newly-played games carry real scores.
+
+    Without this, the pipeline would keep reading yesterday's cached file
+    and never see new results.
+    """
+    RAW_PATH.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        urllib.request.urlretrieve(RESULTS_URL, RAW_PATH)
+    except Exception as e:  # offline / source down: fall back to cache
+        print(f"WARNING: could not refresh results ({e}); using cached file.")
 
 
 def generate_locked_predictions() -> pd.DataFrame:
@@ -110,7 +124,8 @@ def update(n_sims: int = 20000) -> dict:
         generate_locked_predictions()
     locked = pd.read_csv(LOCKED)
 
-    # 1-2. refresh results + Elo
+    # 1-2. refresh results (re-download) + Elo
+    refresh_results_file()
     results = build_results_dataset()
     wc = load_wc2026(save=False)
     elo = EloSystem().fit_from_results(results)

@@ -1,0 +1,44 @@
+name: Daily prediction update
+
+# Runs every morning during the tournament: re-pulls results, re-simulates
+# with completed games fixed, updates movement + scorecard, rebuilds the
+# page, and pushes (GitHub Pages then auto-deploys). Also runnable on demand.
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 11:00 UTC daily (after the previous day's games settle)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lightweight deps
+        run: pip install pandas numpy scipy pyarrow rapidfuzz python-dateutil
+
+      - name: Run daily update (re-pull, re-sim, score, rebuild page)
+        run: python -m src.live.daily_update --sims 20000
+
+      - name: Commit & push refreshed page and data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes today."
+          else
+            git commit -m "daily update $(date -u +%Y-%m-%d)"
+            git push
+          fi

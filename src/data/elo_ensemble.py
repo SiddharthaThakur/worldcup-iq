@@ -21,7 +21,11 @@ import pandas as pd
 
 from src.data.team_aliases import resolve_team_code
 
-INDEP_PATH = Path("data/raw/kaggle/elo2026/elo_ratings_wc2026.csv")
+# Distilled 48-team file (committed, so the cloud daily-update needs no
+# Kaggle access). Falls back to the full raw file if the distilled one
+# is absent (local dev right after a fresh Kaggle pull).
+INDEP_PATH = Path("data/processed/independent_elo_2026.csv")
+_RAW_INDEP_PATH = Path("data/raw/kaggle/elo2026/elo_ratings_wc2026.csv")
 
 
 def align_and_ensemble(ours: dict, indep: dict, weight: float = 0.5) -> dict:
@@ -54,7 +58,11 @@ def align_and_ensemble(ours: dict, indep: dict, weight: float = 0.5) -> dict:
 
 def load_independent_ratings(path: Path = INDEP_PATH) -> dict:
     """Latest independent ratings per team, mapped to FIFA codes."""
-    df = pd.read_csv(path)
+    if path.exists():  # distilled {team, rating} file
+        df = pd.read_csv(path)
+        return {r["team"]: float(r["rating"]) for _, r in df.iterrows()}
+    # Fallback: parse the full raw Kaggle file
+    df = pd.read_csv(_RAW_INDEP_PATH)
     latest = df[df["year"] == df["year"].max()].drop_duplicates("country")
     out = {}
     for _, r in latest.iterrows():
