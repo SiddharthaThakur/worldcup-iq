@@ -1,0 +1,30 @@
+{
+  "n_holdout_games": 1581,
+  "n_clubs_matched": 268,
+  "correlation_strength_vs_outcome": 0.286,
+  "correlation_95ci": [
+    0.243,
+    0.329
+  ],
+  "brier_by_lambda": {
+    "0.0": 0.2099,
+    "0.2": 0.2077,
+    "0.3": 0.2069,
+    "0.4": 0.2063,
+    "0.5": 0.206,
+    "0.6": 0.2059,
+    "0.8": 0.2065,
+    "1.0": 0.2085
+  },
+  "best_lambda": 0.6,
+  "brier_improvement_mean": 0.004,
+  "brier_improvement_95ci": [
+    0.0018,
+    0.0062
+  ],
+  "improvement_is_significant": true,
+  "gate": {
+    "passes": false,
+    "reason": "FAIL: strength-outcome correlation 0.29 < 0.3"
+  }
+}

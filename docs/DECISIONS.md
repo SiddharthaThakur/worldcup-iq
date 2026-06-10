@@ -220,6 +220,27 @@ So EA FC 26 floors coverage for European/major-league players, but NOT for squad
 
 ---
 
+## D021: EA-Based Re-Test — Direct Evidence PASSES, Proxy Gate BORDERLINE (2026-06-10)
+
+**Pre-specified re-test (legitimate per D020): same gate, but on the ACTUAL deployed signal — EA FC ratings run through the real `team_strength` aggregator, validated on out-of-sample 2025-season club games.** Tightened: only confident EA↔Transfermarkt club name matches kept (268 clubs), and bootstrap 95% CIs on both metrics.
+
+**Result (1,581 holdout games):**
+
+| λ | 0.0 | 0.3 | 0.5 | **0.6** | 0.8 | 1.0 |
+|---|---|---|---|---|---|---|
+| Brier | 0.2099 | 0.2069 | 0.2060 | **0.2059** | 0.2065 | 0.2085 |
+
+- **Out-of-sample Brier improvement (blend vs Elo): +0.0040, 95% CI [0.0018, 0.0062] — STATISTICALLY SIGNIFICANT (excludes 0).** The direct measure of "does it predict better?" passes cleanly. Best λ = 0.6.
+- **Correlation(strength-diff, outcome): 0.286, 95% CI [0.243, 0.329].** Point estimate below the pre-registered 0.30 bar, but the CI STRADDLES 0.30 — statistically indistinguishable from the threshold.
+
+**The tension, stated plainly:** the pre-registered gate (D009) keys on the correlation point estimate (≥0.30) and by that letter this FAILS (0.286 < 0.30). But the gate's *intent* — "does player strength carry real predictive signal?" — is now answered YES by a significant out-of-sample Brier gain, the more direct and appropriate measure. The correlation proxy and the direct evidence conflict, and the correlation CI doesn't even cleanly place us below the bar.
+
+Two independent signals (market value in D020: corr 0.293; EA ratings here: corr 0.286) agree: the blend reliably helps a little. The effect is REAL but SMALL.
+
+**This is a judgment call the pre-registration did not cleanly resolve** (an OR-gate on a proxy that turned out to conflict with the direct measure). Resolution is deferred to the project owner rather than decided unilaterally — recorded here as the honest state of evidence. Regardless of that call: **lineup sensitivity stays held back** — this test validates TEAM-level strength, not the finer claim that swapping one player yields meaningful sensitivity (that needs per-player validation we have not done).
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---
