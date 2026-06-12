@@ -38,6 +38,7 @@ PRED = Path("data/predictions")
 LOCKED = PRED / "locked_predictions.csv"          # all models, all 72 games
 HISTORY = PRED / "champion_history.csv"           # daily odds snapshots
 SCORECARD = PRED / "scorecard.json"               # running accuracy
+ADVANCEMENT = PRED / "advancement.csv"            # per-round probs (for the bracket funnel)
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
@@ -154,6 +155,9 @@ def update(n_sims: int = 20000) -> dict:
                          params=params, config=SimulationConfig(n_sims=n_sims),
                          completed=completed_sim)
     today_probs = dict(zip(sim["team"], sim["p_champion"]))
+    # Full per-round probabilities for the bracket funnel (reflects games so far)
+    sim[["team", "p_r32", "p_r16", "p_qf", "p_sf", "p_final", "p_champion"]].to_csv(
+        ADVANCEMENT, index=False)
 
     # 4. movement vs previous snapshot
     prev = {}

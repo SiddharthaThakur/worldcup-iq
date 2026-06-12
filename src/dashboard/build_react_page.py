@@ -103,6 +103,33 @@ def _scorecard() -> dict:
     return {}
 
 
+ADVANCEMENT = Path("data/predictions/advancement.csv")
+_ROUNDS = [("Round of 32", "p_r32"), ("Round of 16", "p_r16"),
+           ("Quarter-final", "p_qf"), ("Semi-final", "p_sf"),
+           ("Final", "p_final"), ("Champion", "p_champion")]
+
+
+def _bracket() -> list[dict]:
+    """Per-round 'funnel': top teams most likely to reach each round.
+
+    Honest by construction — these are probabilities of REACHING a round,
+    not invented matchups (we don't know the bracket pairings yet)."""
+    src = ADVANCEMENT if ADVANCEMENT.exists() else CHAMP_CSV
+    if not src.exists():
+        return []
+    df = pd.read_csv(src)
+    cols = {c for c in df.columns}
+    out = []
+    for label, col in _ROUNDS:
+        if col not in cols:
+            continue
+        top = df.sort_values(col, ascending=False).head(8)
+        out.append({"label": label,
+                    "teams": [{"team": r["team"], "p": float(r[col])}
+                              for _, r in top.iterrows()]})
+    return out
+
+
 HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -151,6 +178,14 @@ HTML = """<!DOCTYPE html>
   .scard .mn{font-size:12px;color:var(--mut)} .scard .bv{font-size:24px;font-weight:800;margin:2px 0}
   .scard .ng{font-size:11px;color:var(--mut)} .scard.best{border-color:#2f81f7}
   .foot{color:var(--mut);font-size:11px;margin-top:28px;line-height:1.6;border-top:1px solid #21262d;padding-top:14px}
+  .funnel{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+  .col{flex:0 0 140px;background:var(--card);border:1px solid #30363d;border-radius:10px;padding:10px}
+  .col h4{margin:0 0 8px;font-size:12px;color:#c9d1d9;text-align:center;text-transform:uppercase;letter-spacing:.3px}
+  .col.champ h4{color:#f0b429}
+  .brow{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 2px;border-bottom:1px solid #21262d}
+  .brow:last-child{border-bottom:none}
+  .brow .bt{font-weight:700} .brow .bp{color:var(--mut);font-variant-numeric:tabular-nums}
+  .brow .bp.lead{color:#f0b429}
 </style>
 </head>
 <body>
@@ -159,6 +194,30 @@ HTML = """<!DOCTYPE html>
 const DATA = __DATA__;
 const CONTENDERS = __CONTENDERS__;
 const SCORECARD = __SCORECARD__;
+const BRACKET = __BRACKET__;
+
+function Funnel(){
+  if(!BRACKET.length) return null;
+  return (
+    <div>
+      <div className="sec">🗺️ Road to the Final <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(chance of reaching each round)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>Not a fixed bracket — the matchups aren't decided until the groups finish. Each column shows the teams most likely to REACH that round. Scroll sideways on mobile →</div>
+      <div className="funnel">
+        {BRACKET.map((col,ci)=>(
+          <div className={'col'+(ci===BRACKET.length-1?' champ':'')} key={col.label}>
+            <h4>{col.label}</h4>
+            {col.teams.map((t,i)=>(
+              <div className="brow" key={t.team}>
+                <span className="bt">{t.team}</span>
+                <span className={'bp'+(i===0?' lead':'')}>{(t.p*100).toFixed(t.p<0.1?1:0)}%</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 const GROUPS = [...new Set(DATA.map(d=>d.group))].sort();
 const pct = x => Math.round(x*100);
 const pct1 = x => (x*100).toFixed(1);
@@ -288,6 +347,7 @@ function App(){
         ))}
       </div>
       {shown.map((m,i)=><Match key={i} m={m}/>)}
+      <Funnel/>
       <div className="foot">
         Model: champion+ (ensemble Elo + player-composition blend + altitude &amp; rest/travel). Probabilities are
         90-minute outcomes. "altitude" flags games where thin air penalises non-adapted teams; "leans Elo"
@@ -308,7 +368,8 @@ def main() -> Path:
     html = (HTML
             .replace("__DATA__", json.dumps(_records()))
             .replace("__CONTENDERS__", json.dumps(_contenders()))
-            .replace("__SCORECARD__", json.dumps(_scorecard())))
+            .replace("__SCORECARD__", json.dumps(_scorecard()))
+            .replace("__BRACKET__", json.dumps(_bracket())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     # Also write index.html at the repo root so GitHub Pages serves it at
