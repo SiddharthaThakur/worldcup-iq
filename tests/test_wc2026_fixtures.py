@@ -50,6 +50,14 @@ def test_host_groups_assigned_correctly(wc):
     assert "USA" in wc.groups["D"]
 
 
+def test_official_group_letters(wc):
+    # Verified against the FIFA draw (5 Dec 2025). I and J were once swapped.
+    assert "ARG" in wc.groups["J"] and "ARG" not in wc.groups["I"]
+    assert "FRA" in wc.groups["I"] and "FRA" not in wc.groups["J"]
+    assert "ESP" in wc.groups["H"]
+    assert "ENG" in wc.groups["L"]
+
+
 def test_fixtures_have_required_columns(wc):
     for col in ("match_id", "date", "home_code", "away_code", "neutral", "group"):
         assert col in wc.fixtures.columns

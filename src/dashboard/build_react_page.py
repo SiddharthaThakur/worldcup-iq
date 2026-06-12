@@ -190,6 +190,8 @@ HTML = """<!DOCTYPE html>
   .intro{background:var(--card);border:1px solid #30363d;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13px;line-height:1.55;color:#c9d1d9}
   .intro b{color:var(--ink)}
   .sec{font-size:15px;font-weight:700;margin:24px 0 12px}
+  .sec.toggle{cursor:pointer;user-select:none;background:var(--card);border:1px solid #30363d;border-radius:10px;padding:12px 14px}
+  .sec.toggle:hover{border-color:#1f6feb}
   .cont{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #21262d}
   .cont .nm{width:54px;font-weight:700}
   .cont .track{flex:1;background:#0b0f14;border:1px solid #30363d;border-radius:5px;height:20px;overflow:hidden}
@@ -440,6 +442,7 @@ function Match({m}){
 
 function App(){
   const [g,setG] = React.useState('All');
+  const [openMatches,setOpenMatches] = React.useState(false);
   const shown = g==='All' ? DATA : DATA.filter(d=>d.group===g);
   return (
     <div className="wrap">
@@ -458,18 +461,23 @@ function App(){
       <Funnel/>
       <R32Bracket/>
       <GoalsTable/>
-      <div className="sec">Group-stage match predictions</div>
-      <div className="legend">
-        <span><span className="dot" style={{background:'var(--home)'}}></span>Home / first team</span>
-        <span><span className="dot" style={{background:'var(--draw)'}}></span>Draw</span>
-        <span><span className="dot" style={{background:'var(--away)'}}></span>Away / second team</span>
+      <div className="sec toggle" onClick={()=>setOpenMatches(o=>!o)}>
+        {openMatches?'▾':'▸'} All {DATA.length} match predictions
+        <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}> (tap to {openMatches?'hide':'show'})</span>
       </div>
-      <div className="tabs">
-        {['All',...GROUPS].map(x=>(
-          <div key={x} className={'tab'+(x===g?' on':'')} onClick={()=>setG(x)}>{x==='All'?'All':'Group '+x}</div>
-        ))}
-      </div>
-      {shown.map((m,i)=><Match key={i} m={m}/>)}
+      {openMatches && <>
+        <div className="legend">
+          <span><span className="dot" style={{background:'var(--home)'}}></span>Home / first team</span>
+          <span><span className="dot" style={{background:'var(--draw)'}}></span>Draw</span>
+          <span><span className="dot" style={{background:'var(--away)'}}></span>Away / second team</span>
+        </div>
+        <div className="tabs">
+          {['All',...GROUPS].map(x=>(
+            <div key={x} className={'tab'+(x===g?' on':'')} onClick={()=>setG(x)}>{x==='All'?'All':'Group '+x}</div>
+          ))}
+        </div>
+        {shown.map((m,i)=><Match key={i} m={m}/>)}
+      </>}
       <div className="foot">
         Model: champion+ (ensemble Elo + player-composition blend + altitude &amp; rest/travel). Probabilities are
         90-minute outcomes. "altitude" flags games where thin air penalises non-adapted teams; "leans Elo"

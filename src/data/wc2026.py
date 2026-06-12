@@ -30,6 +30,24 @@ GROUPS_JSON = Path("data/processed/wc2026_groups.json")
 
 HOST_GROUPS = {"MEX": "A", "CAN": "B", "USA": "D"}
 
+# Official 2026 group letters from the FIFA draw (5 Dec 2025). We assign
+# letters from this verified mapping rather than guessing from fixture order
+# — the bracket (Winner I, Runner-up J, ...) depends on correct letters.
+OFFICIAL_GROUPS = {
+    "A": {"CZE", "MEX", "RSA", "KOR"},
+    "B": {"BIH", "CAN", "QAT", "SUI"},
+    "C": {"BRA", "HTI", "MAR", "SCO"},
+    "D": {"AUS", "PAR", "TUR", "USA"},
+    "E": {"CUW", "ECU", "GER", "CIV"},
+    "F": {"JPN", "NED", "SWE", "TUN"},
+    "G": {"BEL", "EGY", "IRN", "NZL"},
+    "H": {"CPV", "KSA", "ESP", "URU"},
+    "I": {"FRA", "IRQ", "NOR", "SEN"},
+    "J": {"ALG", "ARG", "AUT", "JOR"},
+    "K": {"COL", "COD", "POR", "UZB"},
+    "L": {"CRO", "ENG", "GHA", "PAN"},
+}
+
 
 @dataclass
 class WC2026:
@@ -74,26 +92,19 @@ def load_wc2026(raw_path: Path = RAW_PATH, save: bool = True) -> WC2026:
 
     components = _connected_components(list(zip(fx["home_code"], fx["away_code"])))
 
-    # Host groups get their FIFA letters; the rest go chronologically
-    first_match = {}
-    for comp in components:
-        key = frozenset(comp)
-        mask = fx["home_code"].isin(comp)
-        first_match[key] = (fx.loc[mask, "date"].min(), tuple(sorted(comp)))
-
+    # Assign each fixture-derived component to its OFFICIAL group letter, and
+    # verify the components match the published draw (catches any data drift).
     groups: dict[str, list[str]] = {}
-    unassigned = []
     for comp in components:
-        host = next((t for t in comp if t in HOST_GROUPS), None)
-        if host:
-            groups[HOST_GROUPS[host]] = sorted(comp)
-        else:
-            unassigned.append(comp)
-
-    free_letters = [ch for ch in "ABCDEFGHIJKL" if ch not in groups]
-    unassigned.sort(key=lambda c: first_match[frozenset(c)])
-    for letter, comp in zip(free_letters, unassigned):
-        groups[letter] = sorted(comp)
+        comp_set = set(comp)
+        match = next((L for L, teams in OFFICIAL_GROUPS.items() if teams == comp_set), None)
+        if match is None:
+            raise ValueError(
+                f"Fixture group {sorted(comp_set)} does not match any official "
+                f"2026 group — check OFFICIAL_GROUPS / fixtures.")
+        groups[match] = sorted(comp)
+    if set(groups) != set(OFFICIAL_GROUPS):
+        raise ValueError("Not all 12 official groups were formed from fixtures.")
 
     team_group = {t: g for g, teams in groups.items() for t in teams}
     fx["group"] = fx["home_code"].map(team_group)
