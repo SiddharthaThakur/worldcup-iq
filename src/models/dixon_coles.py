@@ -28,6 +28,14 @@ from scipy.stats import poisson
 MAX_GOALS = 8  # consider scorelines up to 7-7 (tail matters for calibration)
 PARAMS_PATH = Path("models/dixon_coles_params.json")
 
+# Goal-level calibration (D025). The model fitted on all internationals,
+# combined with the champion+ rating blend compressing team gaps, produced
+# ~2.46 total goals/game vs ~2.6 in real recent World Cups. This multiplier
+# scales both teams' expected goals to match WC scoring. Affects absolute
+# goal levels (and slightly lowers draw rates); the win/loss split is
+# nearly unchanged since it depends on the DIFFERENCE in expected goals.
+GOAL_CALIBRATION = 1.06
+
 
 @dataclass
 class DixonColesParams:
@@ -124,8 +132,8 @@ def strengths_to_expected_goals(
     diff = (home_strength - away_strength) / 100.0
     log_lh = params.intercept + params.elo_coef * diff + (0.0 if neutral else params.home_adv)
     log_la = params.intercept - params.elo_coef * diff
-    lambda_home = float(np.clip(np.exp(log_lh), 0.1, 6.0))
-    lambda_away = float(np.clip(np.exp(log_la), 0.1, 6.0))
+    lambda_home = float(np.clip(np.exp(log_lh) * GOAL_CALIBRATION, 0.1, 6.0))
+    lambda_away = float(np.clip(np.exp(log_la) * GOAL_CALIBRATION, 0.1, 6.0))
     return lambda_home, lambda_away
 
 

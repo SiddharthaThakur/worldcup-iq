@@ -398,6 +398,8 @@ function App(){
       </div>
       <Contenders/>
       <Scorecard/>
+      <Funnel/>
+      <GoalsTable/>
       <div className="sec">Group-stage match predictions</div>
       <div className="legend">
         <span><span className="dot" style={{background:'var(--home)'}}></span>Home / first team</span>
@@ -410,8 +412,6 @@ function App(){
         ))}
       </div>
       {shown.map((m,i)=><Match key={i} m={m}/>)}
-      <Funnel/>
-      <GoalsTable/>
       <div className="foot">
         Model: champion+ (ensemble Elo + player-composition blend + altitude &amp; rest/travel). Probabilities are
         90-minute outcomes. "altitude" flags games where thin air penalises non-adapted teams; "leans Elo"
