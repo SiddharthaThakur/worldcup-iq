@@ -190,8 +190,9 @@ HTML = """<!DOCTYPE html>
   .intro{background:var(--card);border:1px solid #30363d;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13px;line-height:1.55;color:#c9d1d9}
   .intro b{color:var(--ink)}
   .sec{font-size:15px;font-weight:700;margin:24px 0 12px}
-  .sec.toggle{cursor:pointer;user-select:none;background:var(--card);border:1px solid #30363d;border-radius:10px;padding:12px 14px}
-  .sec.toggle:hover{border-color:#1f6feb}
+  .sec.toggle{cursor:pointer;user-select:none;background:rgba(232,89,12,0.08);border:1.5px solid var(--away);
+    border-radius:10px;padding:12px 14px;color:#ffb37a}
+  .sec.toggle:hover{background:rgba(232,89,12,0.16)}
   .cont{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #21262d}
   .cont .nm{width:54px;font-weight:700}
   .cont .track{flex:1;background:#0b0f14;border:1px solid #30363d;border-radius:5px;height:20px;overflow:hidden}
@@ -238,6 +239,7 @@ HTML = """<!DOCTYPE html>
   .bmatch{background:var(--card);border:1px solid #30363d;border-radius:8px;padding:6px 7px}
   .bvs{text-align:center;color:var(--mut);font-size:9px;margin:2px 0}
   .tslot{display:flex;flex-direction:column;gap:1px}
+  .slbl{font-size:9px;color:#6e7681;text-transform:uppercase;letter-spacing:.3px;margin-bottom:1px}
   .tcand{display:flex;justify-content:space-between;font-size:12px}
   .tcand .ct{color:var(--mut)} .tcand.top .ct{color:#fff;font-weight:700}
   .tcand.qual .ct{color:#3fb950} .tcand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
@@ -256,17 +258,18 @@ const BRACKET = __BRACKET__;
 const GOALS = __GOALS__;
 const TREE = __TREE__;
 
-function TSlot({cands}){
+function TSlot({cands, label}){
   const locked = cands.length===1;
-  if(!cands.length) return <div className="tslot"><span className="ct dim">—</span></div>;
   return (
     <div className="tslot">
-      {cands.map((c,i)=>(
-        <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
-          <span className="ct">{c.team}</span>
-          <span className="cp">{locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
-        </div>
-      ))}
+      {label && <div className="slbl">{label}</div>}
+      {!cands.length ? <span className="ct dim">—</span> :
+        cands.map((c,i)=>(
+          <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
+            <span className="ct">{c.team}</span>
+            <span className="cp">{locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
+          </div>
+        ))}
     </div>
   );
 }
@@ -287,9 +290,9 @@ function BracketTree(){
                 return (
                   <div className={'bmatch'+(empty?' tbd':'')} key={m.match}>
                     {empty ? <div className="tbdlbl">TBD</div> : <>
-                      <TSlot cands={m.a}/>
+                      <TSlot cands={m.a} label={m.a_label}/>
                       <div className="bvs">v</div>
-                      <TSlot cands={m.b}/>
+                      <TSlot cands={m.b} label={m.b_label}/>
                     </>}
                   </div>
                 );
