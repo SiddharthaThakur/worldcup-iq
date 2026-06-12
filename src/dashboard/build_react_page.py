@@ -125,6 +125,15 @@ def _goals() -> list[dict]:
             for _, r in df.iterrows()]
 
 
+R32_JSON = Path("data/predictions/bracket.json")
+
+
+def _r32() -> list[dict]:
+    if R32_JSON.exists():
+        return json.loads(R32_JSON.read_text())
+    return []
+
+
 def _bracket() -> list[dict]:
     """Per-round 'funnel': top teams most likely to reach each round.
 
@@ -209,6 +218,17 @@ HTML = """<!DOCTYPE html>
   table.gt td.tm{font-weight:700} table.gt .pos{color:#3fb950} table.gt .neg{color:#f0883e}
   table.gt .act{color:var(--mut);font-size:12px}
   .gtwrap{overflow-x:auto}
+  .r32{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(max-width:640px){.r32{grid-template-columns:1fr}}
+  .tie{background:var(--card);border:1px solid #30363d;border-radius:10px;padding:10px 12px}
+  .tie .mno{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .slot{margin:4px 0}
+  .slot .sl{font-size:11px;color:#8b949e;margin-bottom:2px}
+  .cand{display:flex;justify-content:space-between;font-size:13px;padding:1px 0}
+  .cand .ct{font-weight:600} .cand:first-of-type .ct{color:#fff}
+  .cand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
+  .tievs{text-align:center;color:var(--mut);font-size:11px;margin:4px 0}
+  .tie .locked .ct{color:#3fb950}
 </style>
 </head>
 <body>
@@ -219,6 +239,43 @@ const CONTENDERS = __CONTENDERS__;
 const SCORECARD = __SCORECARD__;
 const BRACKET = __BRACKET__;
 const GOALS = __GOALS__;
+const R32 = __R32__;
+
+function Slot({label, cands}){
+  const locked = cands.length===1;
+  return (
+    <div className="slot">
+      <div className="sl">{label}</div>
+      {cands.length===0 ? <div className="cand"><span className="ct" style={{color:'var(--mut)'}}>—</span></div> :
+        cands.map((c,i)=>(
+          <div className={'cand'+(locked?' locked':'')} key={c.team}>
+            <span className="ct">{c.team}</span>
+            <span className="cp">{locked?'qualified':(c.p*100).toFixed(0)+'%'}</span>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function R32Bracket(){
+  if(!R32.length) return null;
+  return (
+    <div>
+      <div className="sec">🧩 Round of 32 — who's likely to play whom <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(top 3 per slot)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>The 16 first-knockout matchups are fixed by group position; the teams aren't. Each slot shows its most likely occupants — this narrows to 2, then 1, as the groups finish. Third-place slots are approximate (a team can appear in more than one).</div>
+      <div className="r32">
+        {R32.map(t=>(
+          <div className="tie" key={t.match}>
+            <div className="mno">Match {t.match}</div>
+            <Slot label={t.a_label} cands={t.a}/>
+            <div className="tievs">vs</div>
+            <Slot label={t.b_label} cands={t.b}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function GoalsTable(){
   if(!GOALS.length) return null;
@@ -399,6 +456,7 @@ function App(){
       <Contenders/>
       <Scorecard/>
       <Funnel/>
+      <R32Bracket/>
       <GoalsTable/>
       <div className="sec">Group-stage match predictions</div>
       <div className="legend">
@@ -434,7 +492,8 @@ def main() -> Path:
             .replace("__CONTENDERS__", json.dumps(_contenders()))
             .replace("__SCORECARD__", json.dumps(_scorecard()))
             .replace("__BRACKET__", json.dumps(_bracket()))
-            .replace("__GOALS__", json.dumps(_goals())))
+            .replace("__GOALS__", json.dumps(_goals()))
+            .replace("__R32__", json.dumps(_r32())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     # Also write index.html at the repo root so GitHub Pages serves it at

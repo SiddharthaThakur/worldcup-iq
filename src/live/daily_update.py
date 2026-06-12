@@ -40,6 +40,7 @@ HISTORY = PRED / "champion_history.csv"           # daily odds snapshots
 SCORECARD = PRED / "scorecard.json"               # running accuracy
 ADVANCEMENT = PRED / "advancement.csv"            # per-round probs (for the bracket funnel)
 GOALS_TABLE = PRED / "goals_table.csv"            # xG for/against per team (group + knockout rate)
+BRACKET = PRED / "bracket.json"                   # R32 slots with top-3 likely occupants
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
@@ -214,6 +215,12 @@ def update(n_sims: int = 20000) -> dict:
     sim[["team", "p_r32", "p_r16", "p_qf", "p_sf", "p_final", "p_champion"]].to_csv(
         ADVANCEMENT, index=False)
     build_goals_table(results, wc, champ, params)
+
+    # R32 bracket projection — top-3 likely team per slot, narrows as groups play
+    from src.simulation.bracket import project_bracket, simulate_positions
+    positions = simulate_positions(wc.groups, champ, {"USA", "CAN", "MEX"}, params,
+                                   n_sims=min(n_sims, 20000), completed=completed_sim)
+    BRACKET.write_text(json.dumps(project_bracket(positions, wc.groups)))
 
     # 4. movement vs previous snapshot
     prev = {}
