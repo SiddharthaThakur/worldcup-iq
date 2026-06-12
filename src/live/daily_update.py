@@ -216,11 +216,12 @@ def update(n_sims: int = 20000) -> dict:
         ADVANCEMENT, index=False)
     build_goals_table(results, wc, champ, params)
 
-    # R32 bracket projection — top-3 likely team per slot, narrows as groups play
-    from src.simulation.bracket import project_bracket, simulate_positions
+    # Bracket: project the Round of 32 (top-3 per slot); later rounds are
+    # placeholders that fill in as feeder games are decided.
+    from src.simulation.bracket import build_progressive_bracket, simulate_positions
     positions = simulate_positions(wc.groups, champ, {"USA", "CAN", "MEX"}, params,
                                    n_sims=min(n_sims, 20000), completed=completed_sim)
-    BRACKET.write_text(json.dumps(project_bracket(positions, wc.groups)))
+    BRACKET.write_text(json.dumps(build_progressive_bracket(positions, wc.groups)))
 
     # 4. movement vs previous snapshot
     prev = {}

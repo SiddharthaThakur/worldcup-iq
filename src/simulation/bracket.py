@@ -120,3 +120,41 @@ def project_bracket(positions, groups) -> list[dict]:
             "b": _slot_candidates(slot_b, positions, groups),
         })
     return out
+
+
+# How winners feed forward (FIFA's published 2026 bracket). Used to lay out
+# the later rounds as placeholders that fill in once their feeder games are
+# played — we project only the Round of 32 up front (user's choice).
+R16_FEEDERS = {89: (74, 77), 90: (73, 75), 91: (76, 78), 92: (79, 80),
+               93: (83, 84), 94: (81, 82), 95: (86, 88), 96: (85, 87)}
+QF_FEEDERS = {97: (89, 90), 98: (93, 94), 99: (91, 92), 100: (95, 96)}
+SF_FEEDERS = {101: (97, 98), 102: (99, 100)}
+FINAL_FEEDERS = {104: (101, 102)}
+
+
+def _round_order():
+    """Match order per round so columns read top-to-bottom (feeders aligned)."""
+    order = {"Final": [104]}
+    order["Semi-finals"] = list(FINAL_FEEDERS[104])
+    order["Quarter-finals"] = [m for p in order["Semi-finals"] for m in SF_FEEDERS[p]]
+    order["Round of 16"] = [m for p in order["Quarter-finals"] for m in QF_FEEDERS[p]]
+    order["Round of 32"] = [m for p in order["Round of 16"] for m in R16_FEEDERS[p]]
+    return order
+
+
+def build_progressive_bracket(positions, groups) -> list[dict]:
+    """Round-based bracket: R32 projected now; later rounds are TBD
+    placeholders (they fill in as feeder games are decided)."""
+    order = _round_order()
+    r32_by_match = {m["match"]: m for m in project_bracket(positions, groups)}
+    rounds = [{"round": "Round of 32",
+               "matches": [r32_by_match[m] for m in order["Round of 32"]]}]
+    feeders = {"Round of 16": R16_FEEDERS, "Quarter-finals": QF_FEEDERS,
+               "Semi-finals": SF_FEEDERS, "Final": FINAL_FEEDERS}
+    for name in ("Round of 16", "Quarter-finals", "Semi-finals", "Final"):
+        rounds.append({
+            "round": name,
+            "matches": [{"match": m, "a": [], "b": [],
+                         "from": list(feeders[name][m])} for m in order[name]],
+        })
+    return rounds

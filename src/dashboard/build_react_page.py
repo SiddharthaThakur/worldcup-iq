@@ -231,6 +231,19 @@ HTML = """<!DOCTYPE html>
   .cand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
   .tievs{text-align:center;color:var(--mut);font-size:11px;margin:4px 0}
   .tie .locked .ct{color:#3fb950}
+  .btree{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+  .bcol{flex:0 0 132px;display:flex;flex-direction:column}
+  .bcol h5{margin:0 0 8px;font-size:11px;color:#c9d1d9;text-transform:uppercase;letter-spacing:.3px;text-align:center;position:sticky;top:0}
+  .bcol-body{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:8px}
+  .bmatch{background:var(--card);border:1px solid #30363d;border-radius:8px;padding:6px 7px}
+  .bvs{text-align:center;color:var(--mut);font-size:9px;margin:2px 0}
+  .tslot{display:flex;flex-direction:column;gap:1px}
+  .tcand{display:flex;justify-content:space-between;font-size:12px}
+  .tcand .ct{color:var(--mut)} .tcand.top .ct{color:#fff;font-weight:700}
+  .tcand.qual .ct{color:#3fb950} .tcand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
+  .tcand .ct.dim{color:#484f58}
+  .bmatch.tbd{display:flex;align-items:center;justify-content:center;min-height:42px;border-style:dashed}
+  .tbdlbl{color:#484f58;font-size:11px;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -241,37 +254,47 @@ const CONTENDERS = __CONTENDERS__;
 const SCORECARD = __SCORECARD__;
 const BRACKET = __BRACKET__;
 const GOALS = __GOALS__;
-const R32 = __R32__;
+const TREE = __TREE__;
 
-function Slot({label, cands}){
+function TSlot({cands}){
   const locked = cands.length===1;
+  if(!cands.length) return <div className="tslot"><span className="ct dim">—</span></div>;
   return (
-    <div className="slot">
-      <div className="sl">{label}</div>
-      {cands.length===0 ? <div className="cand"><span className="ct" style={{color:'var(--mut)'}}>—</span></div> :
-        cands.map((c,i)=>(
-          <div className={'cand'+(locked?' locked':'')} key={c.team}>
-            <span className="ct">{c.team}</span>
-            <span className="cp">{locked?'qualified':(c.p*100).toFixed(0)+'%'}</span>
-          </div>
-        ))}
+    <div className="tslot">
+      {cands.map((c,i)=>(
+        <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
+          <span className="ct">{c.team}</span>
+          <span className="cp">{locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-function R32Bracket(){
-  if(!R32.length) return null;
+function BracketTree(){
+  if(!TREE.length) return null;
   return (
     <div>
-      <div className="sec">🧩 Round of 32 — who's likely to play whom <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(top 3 per slot)</span></div>
-      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>The 16 first-knockout matchups are fixed by group position; the teams aren't. Each slot shows its most likely occupants — this narrows to 2, then 1, as the groups finish. Third-place slots are approximate (a team can appear in more than one).</div>
-      <div className="r32">
-        {R32.map(t=>(
-          <div className="tie" key={t.match}>
-            <div className="mno">Match {t.match}</div>
-            <Slot label={t.a_label} cands={t.a}/>
-            <div className="tievs">vs</div>
-            <Slot label={t.b_label} cands={t.b}/>
+      <div className="sec">🧩 Bracket — who's likely to meet whom <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(scroll right → for later rounds)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>The Round of 32 shows each slot's 3 most likely teams (narrows to 1 ✓ as groups finish). Later rounds fill in once the previous round's games are played.</div>
+      <div className="btree">
+        {TREE.map(round=>(
+          <div className="bcol" key={round.round}>
+            <h5>{round.round}</h5>
+            <div className="bcol-body">
+              {round.matches.map(m=>{
+                const empty = (!m.a||!m.a.length) && (!m.b||!m.b.length);
+                return (
+                  <div className={'bmatch'+(empty?' tbd':'')} key={m.match}>
+                    {empty ? <div className="tbdlbl">TBD</div> : <>
+                      <TSlot cands={m.a}/>
+                      <div className="bvs">v</div>
+                      <TSlot cands={m.b}/>
+                    </>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
@@ -458,9 +481,6 @@ function App(){
       </div>
       <Contenders/>
       <Scorecard/>
-      <Funnel/>
-      <R32Bracket/>
-      <GoalsTable/>
       <div className="sec toggle" onClick={()=>setOpenMatches(o=>!o)}>
         {openMatches?'▾':'▸'} All {DATA.length} match predictions
         <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}> (tap to {openMatches?'hide':'show'})</span>
@@ -478,6 +498,9 @@ function App(){
         </div>
         {shown.map((m,i)=><Match key={i} m={m}/>)}
       </>}
+      <Funnel/>
+      <BracketTree/>
+      <GoalsTable/>
       <div className="foot">
         Model: champion+ (ensemble Elo + player-composition blend + altitude &amp; rest/travel). Probabilities are
         90-minute outcomes. "altitude" flags games where thin air penalises non-adapted teams; "leans Elo"
@@ -501,7 +524,7 @@ def main() -> Path:
             .replace("__SCORECARD__", json.dumps(_scorecard()))
             .replace("__BRACKET__", json.dumps(_bracket()))
             .replace("__GOALS__", json.dumps(_goals()))
-            .replace("__R32__", json.dumps(_r32())))
+            .replace("__TREE__", json.dumps(_r32())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     # Also write index.html at the repo root so GitHub Pages serves it at
