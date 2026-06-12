@@ -39,6 +39,7 @@ LOCKED = PRED / "locked_predictions.csv"          # all models, all 72 games
 HISTORY = PRED / "champion_history.csv"           # daily odds snapshots
 SCORECARD = PRED / "scorecard.json"               # running accuracy
 ADVANCEMENT = PRED / "advancement.csv"            # per-round probs (for the bracket funnel)
+GOALS_TABLE = PRED / "goals_table.csv"            # xG for/against per team (group + knockout rate)
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
@@ -103,6 +104,60 @@ def generate_locked_predictions() -> pd.DataFrame:
     return df
 
 
+def build_goals_table(results: pd.DataFrame, wc, champ_ratings: dict,
+                      params) -> pd.DataFrame:
+    """Per-team xG: group-stage totals (+ actual once played) and a
+    per-knockout-match rate vs a typical qualifier."""
+    from collections import defaultdict
+    from src.models.dixon_coles import strengths_to_expected_goals
+
+    live = pd.read_csv(PRED / "group_stage_champion_plus.csv")
+    team_group = {t: g for g, ts in wc.groups.items() for t in ts}
+
+    gxf, gxa = defaultdict(float), defaultdict(float)
+    for _, r in live.iterrows():
+        h, a = str(r["match"]).split(" v ")
+        xh, xa = map(float, str(r["xg"]).split("-"))
+        gxf[h] += xh; gxa[h] += xa
+        gxf[a] += xa; gxa[a] += xh
+
+    # actual goals in played group games
+    af, aa, played_n = defaultdict(int), defaultdict(int), defaultdict(int)
+    grp_played = results[(results["tournament"] == "FIFA World Cup")
+                         & (results["date"].dt.year == 2026)
+                         & results["home_score"].notna()]
+    fixt_ids = set(wc.fixtures["match_id"])
+    for _, m in grp_played.iterrows():
+        if m["match_id"] not in fixt_ids:
+            continue
+        h, a = m["home_code"], m["away_code"]
+        hg, ag = int(m["home_score"]), int(m["away_score"])
+        af[h] += hg; aa[h] += ag; played_n[h] += 1
+        af[a] += ag; aa[a] += hg; played_n[a] += 1
+
+    # knockout per-match rate vs a TYPICAL QUALIFIER: the average rating of
+    # the ~32 teams that reach the knockouts (stronger than the full field,
+    # since the weakest 16 are eliminated).
+    top32 = sorted(champ_ratings.values(), reverse=True)[:32]
+    avg_opp = sum(top32) / len(top32)
+
+    rows = []
+    for team in team_group:
+        ko_f, ko_a = strengths_to_expected_goals(
+            champ_ratings.get(team, avg_opp), avg_opp, params, neutral=True)
+        rows.append({
+            "team": team, "group": team_group[team],
+            "group_xgf": round(gxf[team], 1), "group_xga": round(gxa[team], 1),
+            "group_xgd": round(gxf[team] - gxa[team], 1),
+            "group_actual_f": af[team], "group_actual_a": aa[team],
+            "group_played": played_n[team],
+            "ko_xgf": round(ko_f, 2), "ko_xga": round(ko_a, 2),
+        })
+    df = pd.DataFrame(rows).sort_values("group_xgd", ascending=False)
+    df.to_csv(GOALS_TABLE, index=False)
+    return df
+
+
 def _completed_group_games(results: pd.DataFrame, wc) -> tuple[dict, dict]:
     """Return (completed_for_sim, results_by_match_id) for played group games."""
     played = results[(results["tournament"] == "FIFA World Cup")
@@ -158,6 +213,7 @@ def update(n_sims: int = 20000) -> dict:
     # Full per-round probabilities for the bracket funnel (reflects games so far)
     sim[["team", "p_r32", "p_r16", "p_qf", "p_sf", "p_final", "p_champion"]].to_csv(
         ADVANCEMENT, index=False)
+    build_goals_table(results, wc, champ, params)
 
     # 4. movement vs previous snapshot
     prev = {}

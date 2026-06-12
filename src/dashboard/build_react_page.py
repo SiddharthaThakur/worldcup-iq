@@ -109,6 +109,22 @@ _ROUNDS = [("Round of 32", "p_r32"), ("Round of 16", "p_r16"),
            ("Final", "p_final"), ("Champion", "p_champion")]
 
 
+GOALS_TABLE = Path("data/predictions/goals_table.csv")
+
+
+def _goals() -> list[dict]:
+    """Per-team xG table: group totals (+ actual once played) + knockout rate."""
+    if not GOALS_TABLE.exists():
+        return []
+    df = pd.read_csv(GOALS_TABLE)
+    return [{"team": r["team"], "group": r["group"],
+             "gxf": float(r["group_xgf"]), "gxa": float(r["group_xga"]),
+             "gxd": float(r["group_xgd"]), "af": int(r["group_actual_f"]),
+             "aa": int(r["group_actual_a"]), "played": int(r["group_played"]),
+             "koF": float(r["ko_xgf"]), "koA": float(r["ko_xga"])}
+            for _, r in df.iterrows()]
+
+
 def _bracket() -> list[dict]:
     """Per-round 'funnel': top teams most likely to reach each round.
 
@@ -186,6 +202,13 @@ HTML = """<!DOCTYPE html>
   .brow:last-child{border-bottom:none}
   .brow .bt{font-weight:700} .brow .bp{color:var(--mut);font-variant-numeric:tabular-nums}
   .brow .bp.lead{color:#f0b429}
+  table.gt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px}
+  table.gt th{text-align:right;color:var(--mut);font-weight:600;padding:6px 8px;border-bottom:1px solid #30363d;font-size:11px;text-transform:uppercase}
+  table.gt th:first-child,table.gt td:first-child{text-align:left}
+  table.gt td{padding:6px 8px;border-bottom:1px solid #21262d;text-align:right;font-variant-numeric:tabular-nums}
+  table.gt td.tm{font-weight:700} table.gt .pos{color:#3fb950} table.gt .neg{color:#f0883e}
+  table.gt .act{color:var(--mut);font-size:12px}
+  .gtwrap{overflow-x:auto}
 </style>
 </head>
 <body>
@@ -195,6 +218,46 @@ const DATA = __DATA__;
 const CONTENDERS = __CONTENDERS__;
 const SCORECARD = __SCORECARD__;
 const BRACKET = __BRACKET__;
+const GOALS = __GOALS__;
+
+function GoalsTable(){
+  if(!GOALS.length) return null;
+  const grp = [...GOALS].sort((a,b)=>b.gxd-a.gxd);
+  const ko = [...GOALS].sort((a,b)=>(b.koF-b.koA)-(a.koF-a.koA)).slice(0,12);
+  const anyPlayed = GOALS.some(g=>g.played>0);
+  return (
+    <div>
+      <div className="sec">⚽ Goals outlook <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(expected goals — xG)</span></div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>Group stage: total xG a team is expected to score and concede across its 3 games{anyPlayed?' (actual goals shown once played)':''}.</div>
+      <div className="gtwrap">
+        <table className="gt">
+          <thead><tr><th>Team</th><th>Grp</th><th>xG for</th><th>xG against</th><th>xG diff</th>{anyPlayed&&<th>Actual</th>}</tr></thead>
+          <tbody>
+            {grp.map(g=>(
+              <tr key={g.team}>
+                <td className="tm">{g.team}</td><td className="act">{g.group}</td>
+                <td>{g.gxf.toFixed(1)}</td><td>{g.gxa.toFixed(1)}</td>
+                <td className={g.gxd>=0?'pos':'neg'}>{g.gxd>=0?'+':''}{g.gxd.toFixed(1)}</td>
+                {anyPlayed&&<td className="act">{g.played?`${g.af}–${g.aa}`:'·'}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{color:'var(--mut)',fontSize:12,margin:'14px 0 8px'}}><b style={{color:'#c9d1d9'}}>Knockouts</b> — expected goals per match vs a typical qualifier (matchups not known yet; fills in with real games as the bracket forms). Top 12.</div>
+      <div className="gtwrap">
+        <table className="gt">
+          <thead><tr><th>Team</th><th>xG for / match</th><th>xG against / match</th></tr></thead>
+          <tbody>
+            {ko.map(g=>(
+              <tr key={g.team}><td className="tm">{g.team}</td><td>{g.koF.toFixed(2)}</td><td>{g.koA.toFixed(2)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function Funnel(){
   if(!BRACKET.length) return null;
@@ -348,6 +411,7 @@ function App(){
       </div>
       {shown.map((m,i)=><Match key={i} m={m}/>)}
       <Funnel/>
+      <GoalsTable/>
       <div className="foot">
         Model: champion+ (ensemble Elo + player-composition blend + altitude &amp; rest/travel). Probabilities are
         90-minute outcomes. "altitude" flags games where thin air penalises non-adapted teams; "leans Elo"
@@ -369,7 +433,8 @@ def main() -> Path:
             .replace("__DATA__", json.dumps(_records()))
             .replace("__CONTENDERS__", json.dumps(_contenders()))
             .replace("__SCORECARD__", json.dumps(_scorecard()))
-            .replace("__BRACKET__", json.dumps(_bracket())))
+            .replace("__BRACKET__", json.dumps(_bracket()))
+            .replace("__GOALS__", json.dumps(_goals())))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     # Also write index.html at the repo root so GitHub Pages serves it at
