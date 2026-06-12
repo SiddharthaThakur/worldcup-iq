@@ -235,10 +235,17 @@ HTML = """<!DOCTYPE html>
   .cand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
   .tievs{text-align:center;color:var(--mut);font-size:11px;margin:4px 0}
   .tie .locked .ct{color:#3fb950}
-  .btree{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
-  .bcol{flex:0 0 132px;display:flex;flex-direction:column}
-  .bcol h5{margin:0 0 8px;font-size:11px;color:#c9d1d9;text-transform:uppercase;letter-spacing:.3px;text-align:center;position:sticky;top:0}
-  .bcol-body{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:8px}
+  .btree{display:flex;gap:26px;overflow-x:auto;padding-bottom:10px;align-items:stretch}
+  .bcol{flex:0 0 128px;display:flex;flex-direction:column}
+  .bcol h5{margin:0 0 8px;font-size:11px;color:#c9d1d9;text-transform:uppercase;letter-spacing:.3px;text-align:center}
+  .bcol-body{display:flex;flex-direction:column;flex:1}
+  .bcol-body.final{justify-content:center}
+  .bpair{flex:1;display:flex;flex-direction:column;justify-content:space-around;position:relative}
+  /* dotted "]" joining a feeder pair, then a stub to the next round's match */
+  .bpair::after{content:'';position:absolute;left:100%;top:25%;height:50%;width:12px;
+    border:1.5px dotted #565e68;border-left:0;border-radius:0 5px 5px 0}
+  .bpair::before{content:'';position:absolute;left:calc(100% + 12px);top:50%;width:14px;
+    border-top:1.5px dotted #565e68}
   .bmatch{background:var(--card);border:1px solid #30363d;border-radius:8px;padding:6px 7px}
   .bvs{text-align:center;color:var(--mut);font-size:9px;margin:2px 0}
   .tslot{display:flex;flex-direction:column;gap:1px}
@@ -277,6 +284,21 @@ function TSlot({cands, label}){
   );
 }
 
+function chunk(a,n){const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n));return o;}
+
+function MatchCard({m}){
+  const empty = (!m.a||!m.a.length) && (!m.b||!m.b.length);
+  return (
+    <div className={'bmatch'+(empty?' tbd':'')}>
+      {empty ? <div className="tbdlbl">TBD</div> : <>
+        <TSlot cands={m.a} label={m.a_label}/>
+        <div className="bvs">v</div>
+        <TSlot cands={m.b} label={m.b_label}/>
+      </>}
+    </div>
+  );
+}
+
 function BracketTree(){
   if(!TREE.length) return null;
   return (
@@ -284,25 +306,23 @@ function BracketTree(){
       <div className="sec">🧩 Bracket — who's likely to meet whom <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(scroll right → for later rounds)</span></div>
       <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>The Round of 32 shows each slot's 3 most likely teams (narrows to 1 ✓ as groups finish). Later rounds fill in once the previous round's games are played.</div>
       <div className="btree">
-        {TREE.map(round=>(
-          <div className="bcol" key={round.round}>
-            <h5>{round.round}</h5>
-            <div className="bcol-body">
-              {round.matches.map(m=>{
-                const empty = (!m.a||!m.a.length) && (!m.b||!m.b.length);
-                return (
-                  <div className={'bmatch'+(empty?' tbd':'')} key={m.match}>
-                    {empty ? <div className="tbdlbl">TBD</div> : <>
-                      <TSlot cands={m.a} label={m.a_label}/>
-                      <div className="bvs">v</div>
-                      <TSlot cands={m.b} label={m.b_label}/>
-                    </>}
-                  </div>
-                );
-              })}
+        {TREE.map((round,ri)=>{
+          const last = ri===TREE.length-1;
+          return (
+            <div className="bcol" key={round.round}>
+              <h5>{round.round}</h5>
+              <div className={'bcol-body'+(last?' final':'')}>
+                {last
+                  ? round.matches.map(m=><MatchCard key={m.match} m={m}/>)
+                  : chunk(round.matches,2).map((pair,pi)=>(
+                      <div className="bpair" key={pi}>
+                        {pair.map(m=><MatchCard key={m.match} m={m}/>)}
+                      </div>
+                    ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
