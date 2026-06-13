@@ -19,6 +19,7 @@ CHAMP_CSV = Path("data/predictions/champion_plus_probabilities.csv")
 HISTORY = Path("data/predictions/champion_history.csv")
 SCORECARD = Path("data/predictions/scorecard.json")
 LOCKED = Path("data/predictions/locked_predictions.csv")
+PREDSCORES = Path("data/predictions/predicted_scores.csv")
 OUT = Path("dashboard/predictions.html")
 
 
@@ -46,6 +47,8 @@ def _records() -> list[dict]:
     actual = _actual_results()
     locked = (pd.read_csv(LOCKED).set_index("match_id").to_dict("index")
               if LOCKED.exists() else {})
+    predscores = (pd.read_csv(PREDSCORES).set_index("match_id").to_dict("index")
+                  if PREDSCORES.exists() else {})
     recs = []
     for _, r in df.iterrows():
         home, away = str(r["match"]).split(" v ")
@@ -62,6 +65,9 @@ def _records() -> list[dict]:
             rec["status"] = "played"
             rec["score"] = f"{hg}-{ag}"
             rec["result"] = res
+            ps = predscores.get(mid)
+            if ps:
+                rec["predScore"] = f"{int(ps['pred_h'])}-{int(ps['pred_a'])}"
             lk = locked.get(mid)
             if lk:
                 lp = {"H": lk["champion_plus_H"], "D": lk["champion_plus_D"],
@@ -465,7 +471,8 @@ function Match({m}){
       </div>
       {played ? (
         <div className="meta">
-          {m.lockProb!==undefined && <span>Our pre-match call gave this result <b>{pct(m.lockProb)}%</b></span>}
+          {m.predScore && <span>We predicted <b>{m.predScore}</b></span>}
+          {m.lockProb!==undefined && <span>gave this result <b>{pct(m.lockProb)}%</b></span>}
           {m.correct!==undefined && (m.correct
             ? <span className="ok">✓ favourite won</span>
             : <span className="miss">✗ upset</span>)}

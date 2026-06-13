@@ -41,6 +41,7 @@ SCORECARD = PRED / "scorecard.json"               # running accuracy
 ADVANCEMENT = PRED / "advancement.csv"            # per-round probs (for the bracket funnel)
 GOALS_TABLE = PRED / "goals_table.csv"            # xG for/against per team (group + knockout rate)
 BRACKET = PRED / "bracket.json"                   # R32 slots with top-3 likely occupants
+PREDSCORES = PRED / "predicted_scores.csv"        # frozen pre-match predicted scoreline per game
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
@@ -102,6 +103,50 @@ def generate_locked_predictions() -> pd.DataFrame:
     df = pd.DataFrame(rows)
     PRED.mkdir(parents=True, exist_ok=True)
     df.to_csv(LOCKED, index=False)
+    return df
+
+
+def build_predicted_scores() -> pd.DataFrame:
+    """Frozen pre-match predicted scoreline (champion+) for all 72 games.
+
+    Elo is fit EXCLUDING the 2026 World Cup, so this is reproducible and
+    matches the all-pre-tournament locking philosophy (the same view the
+    locked predictions were made from). Generated once, then frozen.
+    """
+    from src.models.run_champion_plus import _schedule_context
+    from src.models.match_context import altitude_elo_adjustment, rest_travel_elo_adjustment
+
+    res = build_results_dataset()
+    pre = res[~((res["tournament"] == "FIFA World Cup") & (res["date"].dt.year == 2026))]
+    elo = EloSystem().fit_from_results(pre)
+    params = DixonColesParams.load()
+    wc = load_wc2026(save=False)
+    strengths, _ = load_wc_strengths_and_bridge(elo)
+    base = build_base_ratings(elo)
+    bridge = fit_strength_to_elo_bridge([strengths[t]["overall"] for t in base],
+                                        [base[t] for t in base])
+    ctx = _schedule_context(wc.fixtures)
+
+    rows = []
+    for _, r in wc.fixtures.iterrows():
+        h, a, city, mid, neut = (r["home_code"], r["away_code"], r["city"],
+                                 r["match_id"], bool(r["neutral"]))
+
+        def champ_plus_rating(team, opp):
+            bl = blended_rating(base[team], bridge.to_elo(strengths[team]["overall"]),
+                                strengths[team]["confidence"], CHAMPION_LAMBDA)
+            me, op = ctx[(mid, team)], ctx[(mid, opp)]
+            return (bl + altitude_elo_adjustment(team, city)
+                    + rest_travel_elo_adjustment(me["rest"], me["travel"],
+                                                 op["rest"], op["travel"]))
+
+        p = predict_match(h, a, champ_plus_rating(h, a), champ_plus_rating(a, h),
+                          params, neutral=neut)
+        rows.append({"match_id": mid, "pred_h": round(p.home_expected_goals),
+                     "pred_a": round(p.away_expected_goals)})
+    df = pd.DataFrame(rows)
+    PRED.mkdir(parents=True, exist_ok=True)
+    df.to_csv(PREDSCORES, index=False)
     return df
 
 
@@ -184,6 +229,8 @@ def update(n_sims: int = 20000) -> dict:
         return {"stopped": True, "n_completed": None}
     if not LOCKED.exists():
         generate_locked_predictions()
+    if not PREDSCORES.exists():
+        build_predicted_scores()
     locked = pd.read_csv(LOCKED)
 
     # 1-2. refresh results (re-download) + Elo
