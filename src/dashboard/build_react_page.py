@@ -169,6 +169,13 @@ HTML = """<!DOCTYPE html>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
+<script>
+  // Auto cache-buster: GitHub Pages caches the HTML, so on each visit we
+  // reload once with a fresh timestamp to guarantee the latest version.
+  if (location.search.indexOf('v=') === -1) {
+    location.replace(location.pathname + '?v=' + Date.now());
+  }
+</script>
 <title>WorldCupIQ — 2026 Group Stage Predictions</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
