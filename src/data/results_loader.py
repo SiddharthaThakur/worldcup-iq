@@ -16,12 +16,34 @@ from src.data.team_aliases import resolve_team_code
 
 RAW_PATH = Path("data/raw/international_results.csv")
 PROCESSED_PATH = Path("data/processed/international_results.parquet")
+MANUAL_RESULTS_PATH = Path("data/manual_results.csv")
 
 
 def load_raw_results(path: Path = RAW_PATH) -> pd.DataFrame:
     """Load the raw CSV. Expects columns: date, home_team, away_team,
     home_score, away_score, tournament, city, country, neutral."""
     df = pd.read_csv(path, parse_dates=["date"])
+    return df
+
+
+def apply_manual_results(df: pd.DataFrame,
+                         path: Path = MANUAL_RESULTS_PATH) -> pd.DataFrame:
+    """Fill known scores the free source hasn't posted yet.
+
+    Only fills rows whose score is still missing (NA) — so once the
+    official source publishes the real result, IT wins and the manual
+    entry becomes a harmless no-op. Columns: date, home_team, away_team,
+    home_score, away_score.
+    """
+    if not path.exists():
+        return df
+    manual = pd.read_csv(path, parse_dates=["date"])
+    df = df.copy()
+    for _, m in manual.iterrows():
+        mask = ((df["date"] == m["date"]) & (df["home_team"] == m["home_team"])
+                & (df["away_team"] == m["away_team"]) & df["home_score"].isna())
+        df.loc[mask, "home_score"] = m["home_score"]
+        df.loc[mask, "away_score"] = m["away_score"]
     return df
 
 
@@ -70,8 +92,9 @@ def load_processed_results() -> pd.DataFrame:
 
 
 def build_results_dataset(raw_path: Path = RAW_PATH, min_year: int = 2010) -> pd.DataFrame:
-    """Full pipeline: load raw → clean → save parquet → return."""
+    """Full pipeline: load raw → fill manual scores → clean → save parquet."""
     df = load_raw_results(raw_path)
+    df = apply_manual_results(df)
     df = clean_results(df, min_year=min_year)
     PROCESSED_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(PROCESSED_PATH, index=False)
