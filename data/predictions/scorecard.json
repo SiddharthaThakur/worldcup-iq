@@ -1,14 +1,14 @@
 {
   "updated": "2026-06-14",
-  "n_completed": 6,
+  "n_completed": 8,
   "models": {
     "baseline_elo": {
-      "n": 6,
-      "brier": 0.24795273222222222
+      "n": 8,
+      "brier": 0.23695475541666666
     },
     "champion_plus": {
-      "n": 6,
-      "brier": 0.23075276388888888
+      "n": 8,
+      "brier": 0.22607221708333333
     }
   }
 }
