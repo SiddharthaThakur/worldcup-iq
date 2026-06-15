@@ -19,7 +19,7 @@ CHAMP_CSV = Path("data/predictions/champion_plus_probabilities.csv")
 HISTORY = Path("data/predictions/champion_history.csv")
 SCORECARD = Path("data/predictions/scorecard.json")
 LOCKED = Path("data/predictions/locked_predictions.csv")
-PREDSCORES = Path("data/predictions/predicted_scores.csv")
+MODEL_PREDS = Path("data/predictions/model_predictions.csv")
 OUT = Path("dashboard/predictions.html")
 
 
@@ -45,10 +45,8 @@ def _records() -> list[dict]:
     pre-match LOCKED call and whether the favourite was right."""
     df = pd.read_csv(CSV)
     actual = _actual_results()
-    locked = (pd.read_csv(LOCKED).set_index("match_id").to_dict("index")
-              if LOCKED.exists() else {})
-    predscores = (pd.read_csv(PREDSCORES).set_index("match_id").to_dict("index")
-                  if PREDSCORES.exists() else {})
+    mp = (pd.read_csv(MODEL_PREDS).set_index("match_id").to_dict("index")
+          if MODEL_PREDS.exists() else {})
     recs = []
     for _, r in df.iterrows():
         home, away = str(r["match"]).split(" v ")
@@ -60,20 +58,19 @@ def _records() -> list[dict]:
             "alt": float(r["alt_adj"]), "conf": float(r["conf"]),
             "status": "upcoming",
         }
+        m = mp.get(mid)
+        if m:  # frozen pre-match predicted scores, both models
+            rec["predScore"] = f"{int(m['champion_plus_ph'])}-{int(m['champion_plus_pa'])}"
+            rec["predScoreT"] = f"{int(m['champion_tournament_ph'])}-{int(m['champion_tournament_pa'])}"
         if mid in actual:
             hg, ag, res = actual[mid]
             rec["status"] = "played"
             rec["score"] = f"{hg}-{ag}"
             rec["result"] = res
-            ps = predscores.get(mid)
-            if ps:
-                rec["predScore"] = f"{int(ps['pred_h'])}-{int(ps['pred_a'])}"
-            lk = locked.get(mid)
-            if lk:
-                lp = {"H": lk["champion_plus_H"], "D": lk["champion_plus_D"],
-                      "A": lk["champion_plus_A"]}
+            if m:
+                lp = {"H": m["champion_plus_H"], "D": m["champion_plus_D"],
+                      "A": m["champion_plus_A"]}
                 fav = max(lp, key=lp.get)
-                rec["lockHome"], rec["lockDraw"], rec["lockAway"] = lp["H"], lp["D"], lp["A"]
                 rec["lockProb"] = lp[res]          # prob we gave the actual outcome
                 rec["correct"] = (fav == res)      # did our favourite win?
         recs.append(rec)
@@ -200,6 +197,7 @@ HTML = """<!DOCTYPE html>
   .bar>div{display:flex;align-items:center;justify-content:center;min-width:24px}
   .meta{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--mut);flex-wrap:wrap}
   .flag{background:#3d2c0a;color:#f0b429;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}
+  .meta .preds{color:#6e7681;flex-basis:100%}
   .lowconf{background:#3a1d1d;color:#ff8787;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}
   .legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-bottom:14px}
   .dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
@@ -417,7 +415,7 @@ function Move({m}){
 function Scorecard(){
   const sc = SCORECARD;
   if(!sc.models || !sc.n_completed) return null;
-  const names = {champion_plus:'Our model (champion+)', baseline_elo:'Simple Elo baseline', market:'Bookmakers'};
+  const names = {champion_plus:'Champion+ (player composition)', champion_tournament:'Tournament-fit', baseline_elo:'Simple Elo baseline', market:'Bookmakers'};
   const entries = Object.entries(sc.models).filter(([k,v])=>v.brier!=null);
   if(!entries.length) return null;
   const best = Math.min(...entries.map(([k,v])=>v.brier));
@@ -478,11 +476,11 @@ function Match({m}){
       </div>
       {played ? (
         <div className="meta">
-          {m.predScore && <span>We predicted <b>{m.predScore}</b></span>}
           {m.lockProb!==undefined && <span>gave this result <b>{pct(m.lockProb)}%</b></span>}
           {m.correct!==undefined && (m.correct
             ? <span className="ok">✓ favourite won</span>
             : <span className="miss">✗ upset</span>)}
+          {m.predScore && <span className="preds">predicted — champion+ <b>{m.predScore}</b> · tournament <b>{m.predScoreT}</b></span>}
         </div>
       ) : (
         <>
@@ -492,8 +490,7 @@ function Match({m}){
             <div style={{width:pct(m.pAway)+'%',background:'var(--away)'}}>{pct(m.pAway)}%</div>
           </div>
           <div className="meta">
-            <span>Predicted score: <b>{xgRounded}</b></span>
-            <span>Expected goals: <b>{m.xg}</b></span>
+            <span>Predicted — champion+ <b>{m.predScore||xgRounded}</b> · tournament <b>{m.predScoreT||'—'}</b></span>
             {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
             {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
           </div>

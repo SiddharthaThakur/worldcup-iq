@@ -122,6 +122,7 @@ def strengths_to_expected_goals(
     away_strength: float,
     params: DixonColesParams,
     neutral: bool = True,
+    goal_scale: float | None = None,
 ) -> tuple[float, float]:
     """Convert strength ratings (Elo or player-derived, same scale) to expected goals.
 
@@ -132,8 +133,9 @@ def strengths_to_expected_goals(
     diff = (home_strength - away_strength) / 100.0
     log_lh = params.intercept + params.elo_coef * diff + (0.0 if neutral else params.home_adv)
     log_la = params.intercept - params.elo_coef * diff
-    lambda_home = float(np.clip(np.exp(log_lh) * GOAL_CALIBRATION, 0.1, 6.0))
-    lambda_away = float(np.clip(np.exp(log_la) * GOAL_CALIBRATION, 0.1, 6.0))
+    scale = GOAL_CALIBRATION if goal_scale is None else goal_scale
+    lambda_home = float(np.clip(np.exp(log_lh) * scale, 0.1, 6.0))
+    lambda_away = float(np.clip(np.exp(log_la) * scale, 0.1, 6.0))
     return lambda_home, lambda_away
 
 
@@ -165,10 +167,11 @@ def predict_match(
     away_strength: float,
     params: DixonColesParams,
     neutral: bool = True,
+    goal_scale: float | None = None,
 ) -> MatchPrediction:
     """Full match prediction from strength ratings and FITTED parameters."""
     lambda_h, lambda_a = strengths_to_expected_goals(
-        home_strength, away_strength, params, neutral
+        home_strength, away_strength, params, neutral, goal_scale=goal_scale
     )
     probs = scoreline_matrix(lambda_h, lambda_a, params.rho)
     p_home, p_draw, p_away = outcome_probs(probs)

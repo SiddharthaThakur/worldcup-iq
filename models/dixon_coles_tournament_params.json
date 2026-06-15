@@ -1,0 +1,8 @@
+{
+  "intercept": 0.12966485683059845,
+  "elo_coef": 0.32690436948970886,
+  "home_adv": 0.23509514457109332,
+  "rho": -0.006783274703634602,
+  "fitted_on": "major tournaments excl 2026 WC",
+  "n_matches": 1141
+}

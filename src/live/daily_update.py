@@ -42,6 +42,8 @@ ADVANCEMENT = PRED / "advancement.csv"            # per-round probs (for the bra
 GOALS_TABLE = PRED / "goals_table.csv"            # xG for/against per team (group + knockout rate)
 BRACKET = PRED / "bracket.json"                   # R32 slots with top-3 likely occupants
 PREDSCORES = PRED / "predicted_scores.csv"        # frozen pre-match predicted scoreline per game
+MODEL_PREDS = PRED / "model_predictions.csv"      # all 3 models on a consistent frozen basis
+TOURNAMENT_PARAMS = Path("models/dixon_coles_tournament_params.json")
 RESULTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 TOURNAMENT_OVER_AFTER = "2026-07-26"  # a week past the final (catches late result fixes)
 
@@ -103,6 +105,67 @@ def generate_locked_predictions() -> pd.DataFrame:
     df = pd.DataFrame(rows)
     PRED.mkdir(parents=True, exist_ok=True)
     df.to_csv(LOCKED, index=False)
+    return df
+
+
+def build_model_predictions() -> pd.DataFrame:
+    """All three models' predictions on ONE consistent frozen basis.
+
+    Same pre-WC ratings for every model (Elo fit excluding the 2026 WC), so
+    the comparison isolates each model's difference:
+      - champion_plus      : composition blend, all-internationals goal model
+      - champion_tournament : same ratings, goal model fitted on TOURNAMENTS
+                              (steeper margins, no calibration fudge)
+      - baseline_elo       : pure Elo, all-internationals goal model
+    Frozen + reproducible. Stores H/D/A probs and predicted goals per model.
+    """
+    from src.models.run_champion_plus import _schedule_context
+    from src.models.match_context import altitude_elo_adjustment, rest_travel_elo_adjustment
+
+    res = build_results_dataset()
+    pre = res[~((res["tournament"] == "FIFA World Cup") & (res["date"].dt.year == 2026))]
+    elo = EloSystem().fit_from_results(pre)
+    params = DixonColesParams.load()
+    tour_params = DixonColesParams.load(TOURNAMENT_PARAMS)
+    wc = load_wc2026(save=False)
+    strengths, _ = load_wc_strengths_and_bridge(elo)
+    base = build_base_ratings(elo)
+    bridge = fit_strength_to_elo_bridge([strengths[t]["overall"] for t in base],
+                                        [base[t] for t in base])
+    ctx = _schedule_context(wc.fixtures)
+
+    rows = []
+    for _, r in wc.fixtures.iterrows():
+        h, a, city, mid, neut = (r["home_code"], r["away_code"], r["city"],
+                                 r["match_id"], bool(r["neutral"]))
+
+        def champ_plus_rating(team, opp):
+            bl = blended_rating(base[team], bridge.to_elo(strengths[team]["overall"]),
+                                strengths[team]["confidence"], CHAMPION_LAMBDA)
+            me, op = ctx[(mid, team)], ctx[(mid, opp)]
+            return (bl + altitude_elo_adjustment(team, city)
+                    + rest_travel_elo_adjustment(me["rest"], me["travel"],
+                                                 op["rest"], op["travel"]))
+
+        cr_h, cr_a = champ_plus_rating(h, a), champ_plus_rating(a, h)
+        preds = {
+            "champion_plus": predict_match(h, a, cr_h, cr_a, params, neutral=neut),
+            "champion_tournament": predict_match(h, a, cr_h, cr_a, tour_params,
+                                                 neutral=neut, goal_scale=1.0),
+            "baseline_elo": predict_match(h, a, elo.get_rating(h), elo.get_rating(a),
+                                          params, neutral=neut),
+        }
+        row = {"match_id": mid, "home": h, "away": a}
+        for name, p in preds.items():
+            row[f"{name}_H"] = round(p.prob_home_win, 4)
+            row[f"{name}_D"] = round(p.prob_draw, 4)
+            row[f"{name}_A"] = round(p.prob_away_win, 4)
+            row[f"{name}_ph"] = round(p.home_expected_goals)
+            row[f"{name}_pa"] = round(p.away_expected_goals)
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    PRED.mkdir(parents=True, exist_ok=True)
+    df.to_csv(MODEL_PREDS, index=False)
     return df
 
 
@@ -231,7 +294,9 @@ def update(n_sims: int = 20000) -> dict:
         generate_locked_predictions()
     if not PREDSCORES.exists():
         build_predicted_scores()
-    locked = pd.read_csv(LOCKED)
+    if not MODEL_PREDS.exists():
+        build_model_predictions()
+    locked = pd.read_csv(MODEL_PREDS)  # 3-model consistent comparison basis
 
     # 1-2. refresh results (re-download) + Elo
     refresh_results_file()

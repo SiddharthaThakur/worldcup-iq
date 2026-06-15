@@ -288,6 +288,18 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 ---
 
+## D026: Third Model — Tournament-Fit Goal Model (2026-06-15)
+
+**Added a third tracked model: `champion_tournament`.** Same champion+ ratings, but the Dixon-Coles goal model is fitted on major-TOURNAMENT matches (WC/Euro/Copa/Asian Cup/AFCON/Gold Cup, excl. 2026 WC; n=1,141) instead of all internationals, and the hand-set +6% calibration bump (D025) is dropped.
+
+**Motivation (diagnostic):** the all-internationals fit produces match margins that are too compressed — avg |goal diff| 0.80 vs 1.35 in real WCs — because most internationals are evenly-matched qualifiers. The tournament fit has a 36% steeper strength→margin slope (elo_coef 0.327 vs 0.241), giving avg |diff| 1.02, draw rate 22.4% (real 21.9%), total 2.59 (real 2.66) — more realistic scorelines, no fudge factor.
+
+**But it does NOT improve outcome accuracy.** Leak-free 2018+2022 backtest: tournament-fit Brier 0.2029 vs champion+ 0.2006 (within noise, slightly worse — steeper margins overrate favourites in upset-heavy tournaments). Live 8-game scorecard (consistent basis): champion+ 0.228, baseline 0.239, tournament 0.243.
+
+**Decision:** keep champion+ as the headline; add tournament-fit as a tracked third model for honest comparison (realistic scorelines vs the others). `goal_scale` param added to the goal model so each model carries its own calibration. All three scored from `model_predictions.csv` (one consistent pre-WC frozen basis, isolating the goal-model effect). Page shows both predicted scores per match and all three Brier scores.
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---

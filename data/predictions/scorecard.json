@@ -1,14 +1,18 @@
 {
-  "updated": "2026-06-14",
+  "updated": "2026-06-15",
   "n_completed": 8,
   "models": {
     "baseline_elo": {
       "n": 8,
-      "brier": 0.23695475541666666
+      "brier": 0.23878266
     },
     "champion_plus": {
       "n": 8,
-      "brier": 0.22607221708333333
+      "brier": 0.2282056995833333
+    },
+    "champion_tournament": {
+      "n": 8,
+      "brier": 0.24267909541666666
     }
   }
 }
