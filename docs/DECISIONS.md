@@ -300,6 +300,18 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 ---
 
+## D027: Offline Bayesian Hierarchical Model — Champion Odds With Credible Intervals (2026-06-15)
+
+**Added an offline, secondary model (PyMC):** the standard hierarchical Poisson (Baio & Blangiardo 2010) — team attack/defence as partially-pooled `ZeroSumNormal` random effects + home advantage, fit on post-2019 internationals (7,191 matches) via NUTS (4 chains; max R-hat 1.010). Champion probabilities come from simulating the 2026 tournament across posterior DRAWS, so they carry parameter uncertainty → a 90% credible interval per team.
+
+**First uncertainty-aware output:** ARG 17.9% [9-29], ESP 12.4% [6-20], BRA 11.9% [5-21], ENG 9.3% [4-17]. The wide intervals are the point — they state honestly how unsure the model is.
+
+**Why offline / not in the daily pipeline:** NUTS takes minutes and needs convergence checks — impractical for the free 6-min daily GitHub Action. Run on demand via `python -m src.models.bayesian` (posterior cached to npz). PyMC/arviz are an optional `[bayesian]` extra, kept out of the daily run's lightweight deps.
+
+**Scope note (v1):** pure results-driven (no player composition yet) and independent Poisson (no Dixon-Coles low-score correction). Natural next step — use player composition as the PRIOR on each team's attack/defence, which would fold the ad-hoc Elo-bridge/blend (D016-D022) into one coherent model. The headline live model stays champion+; this is a parallel, more statistically honest view.
+
+---
+
 ## D019 (cont.): Per-team coverage rule a team is "player-model-capable" if ≥50% of its squad has a quantitative signal. **42 / 48 qualify.** The 6 Elo-only teams — Jordan, Qatar, South Africa, Uzbekistan, Egypt, Panama — get the player model SUPPRESSED (predicted by Elo baseline alone), reason surfaced in dashboard/write-up. Egypt is the instructive case: Salah is Big-5 but most of the squad plays the Egyptian domestic league, so the team as a whole is data-poor. This is the player model's "player-delta-on-Elo" design (discussed, not yet implemented): the per-team coverage score scales how much the player nudge is trusted; data-poor teams fall back to Elo gracefully.
 
 ---

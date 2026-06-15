@@ -33,6 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+bayesian = ["pymc>=5.0", "arviz>=0.15"]
 torch = [
     "torch>=2.1",
 ]
