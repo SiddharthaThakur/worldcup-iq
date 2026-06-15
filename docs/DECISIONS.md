@@ -308,7 +308,30 @@ Two independent signals (market value in D020: corr 0.293; EA ratings here: corr
 
 **Why offline / not in the daily pipeline:** NUTS takes minutes and needs convergence checks — impractical for the free 6-min daily GitHub Action. Run on demand via `python -m src.models.bayesian` (posterior cached to npz). PyMC/arviz are an optional `[bayesian]` extra, kept out of the daily run's lightweight deps.
 
-**Scope note (v1):** pure results-driven (no player composition yet) and independent Poisson (no Dixon-Coles low-score correction). Natural next step — use player composition as the PRIOR on each team's attack/defence, which would fold the ad-hoc Elo-bridge/blend (D016-D022) into one coherent model. The headline live model stays champion+; this is a parallel, more statistically honest view.
+**Scope note (v1):** pure results-driven (no player composition yet) and independent Poisson (no Dixon-Coles low-score correction). Natural next step — use player composition as the PRIOR on each team's attack/defence → done in D028.
+
+---
+
+## D028: Bayesian Player-Composition Priors — and it leads the live scorecard (2026-06-15)
+
+**Extended the Bayesian model so player composition is the PRIOR** on each team's attack/defence: `att = β_att·z_strength + residual` (residual partially-pooled). The data then updates it. Fitted EXCLUDING the 2026 WC, so the played games are out-of-sample.
+
+**The data confirms player composition is predictive:** β_att = +0.25, β_def = +0.19 (both clearly positive) — stronger squads genuinely score more and concede less, learned from match results. This folds the player signal into one coherent model instead of the hand-built Elo-bridge/blend (D016-D022); the hand-coded "confidence" now emerges as posterior variance. Converged cleanly (R-hat 1.01, 4 chains).
+
+**Out-of-sample Brier over the 12 played games (all models, same games):**
+
+| Model | Brier |
+|---|---|
+| **Bayesian (player-prior)** | **0.2017** |
+| champion+ | 0.2098 |
+| tournament-fit | 0.2184 |
+| Elo baseline | 0.2298 |
+
+The Bayesian player-prior model is **best so far** — though 12 games is a tiny, noisy sample (the 0.008 edge over champion+ is within noise). Champion probabilities with 90% credible intervals: ARG 19.6% [10-31], BRA 13.2%, ESP 12.6%, ENG 9.1%. Still offline (cached posterior, `[bayesian]` extra); headline live model remains champion+ pending more evidence.
+
+---
+
+## D019 (cont.): Per-team coverage rule
 
 ---
 

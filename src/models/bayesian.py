@@ -31,18 +31,40 @@ from src.data.results_loader import load_processed_results
 from src.data.wc2026 import load_wc2026
 
 OUT = Path("data/predictions/bayesian_champions.csv")
-IDATA_CACHE = Path("data/processed/bayesian_idata.nc")
+IDATA_CACHE = Path("data/processed/bayesian_posterior.npz")
 IDX_CACHE = Path("data/processed/bayesian_team_idx.json")
 HOST = {"USA", "CAN", "MEX"}
 
 
-def fit(window_from: int = 2019, draws: int = 1000, tune: int = 1000, seed: int = 0):
-    """Fit the hierarchical Poisson model on recent internationals."""
+def _player_strength_z(teams, idx):
+    """Standardised player-composition strength per team (0 for non-WC teams
+    we have no squad data for). Drives the Bayesian PRIOR on attack/defence."""
+    from src.models.champion_model import load_wc_strengths_and_bridge
+    from src.models.elo import EloSystem
+    strengths, _ = load_wc_strengths_and_bridge(EloSystem())  # 'overall' is player-only
+    wc = {t: strengths[t]["overall"] for t in strengths if t in idx}
+    vals = np.array(list(wc.values()))
+    mean, sd = vals.mean(), vals.std()
+    z = np.zeros(len(teams))
+    for t, o in wc.items():
+        z[idx[t]] = (o - mean) / sd
+    return z
+
+
+def fit(window_from: int = 2019, draws: int = 1500, tune: int = 2000, seed: int = 0):
+    """Fit the hierarchical Poisson model on recent internationals.
+
+    EXCLUDES the 2026 World Cup so its games are out-of-sample (honest
+    scoring). Player composition informs the PRIOR on each team's attack and
+    defence: att = β_att·z_strength + residual, so strong squads start above
+    average and the match results then update them.
+    """
     import pymc as pm
 
     res = load_processed_results()
-    df = res[res["date"].dt.year >= window_from].dropna(
-        subset=["home_score", "away_score"]).copy()
+    df = res[(res["date"].dt.year >= window_from)
+             & ~((res["tournament"] == "FIFA World Cup") & (res["date"].dt.year == 2026))
+             ].dropna(subset=["home_score", "away_score"]).copy()
     teams = sorted(set(df["home_code"]) | set(df["away_code"]))
     idx = {t: i for i, t in enumerate(teams)}
     hi = df["home_code"].map(idx).to_numpy()
@@ -51,16 +73,20 @@ def fit(window_from: int = 2019, draws: int = 1000, tune: int = 1000, seed: int 
     ag = df["away_score"].to_numpy(int)
     not_neutral = (~df["neutral"].astype(bool)).to_numpy(float)
     n = len(teams)
+    z_str = _player_strength_z(teams, idx)
 
     with pm.Model() as model:
         mu = pm.Normal("mu", 0.2, 0.5)
         home_adv = pm.Normal("home_adv", 0.25, 0.1)
         sd_att = pm.HalfNormal("sd_att", 0.5)
         sd_def = pm.HalfNormal("sd_def", 0.5)
-        # native sum-to-zero (identifiable vs mu, samples far better than
-        # manual mean-subtraction)
-        att = pm.ZeroSumNormal("att", sigma=sd_att, shape=(n,))
-        deff = pm.ZeroSumNormal("deff", sigma=sd_def, shape=(n,))
+        # player composition shifts the prior; residuals partially-pooled
+        beta_att = pm.Normal("beta_att", 0, 0.5)
+        beta_def = pm.Normal("beta_def", 0, 0.5)
+        att_r = pm.ZeroSumNormal("att_r", sigma=sd_att, shape=(n,))
+        def_r = pm.ZeroSumNormal("def_r", sigma=sd_def, shape=(n,))
+        att = pm.Deterministic("att", beta_att * z_str + att_r)
+        deff = pm.Deterministic("deff", beta_def * z_str + def_r)
 
         log_lh = mu + home_adv * not_neutral + att[hi] - deff[ai]
         log_la = mu + att[ai] - deff[hi]
@@ -68,7 +94,7 @@ def fit(window_from: int = 2019, draws: int = 1000, tune: int = 1000, seed: int 
         pm.Poisson("ag", mu=pm.math.exp(log_la), observed=ag)
 
         idata = pm.sample(draws=draws, tune=tune, chains=4, cores=4,
-                          target_accept=0.95, random_seed=seed, progressbar=False)
+                          target_accept=0.97, random_seed=seed, progressbar=False)
 
     import arviz as az
     post = idata.posterior
@@ -77,7 +103,10 @@ def fit(window_from: int = 2019, draws: int = 1000, tune: int = 1000, seed: int 
         "deff": post["deff"].stack(s=("chain", "draw")).values,
         "mu": post["mu"].stack(s=("chain", "draw")).values,
         "ha": post["home_adv"].stack(s=("chain", "draw")).values,
-        "rhat": float(az.summary(idata)["r_hat"].max()),
+        "rhat": float(az.summary(idata, var_names=["mu", "home_adv", "beta_att",
+                                                   "beta_def", "sd_att", "sd_def"])["r_hat"].max()),
+        "beta_att": float(post["beta_att"].mean()),
+        "beta_def": float(post["beta_def"].mean()),
         "idx": idx,
     }
     return samples
@@ -90,11 +119,13 @@ def fit_cached(refit: bool = False, **kw) -> dict:
         z = np.load(IDATA_CACHE)
         meta = json.loads(IDX_CACHE.read_text())
         return {"att": z["att"], "deff": z["deff"], "mu": z["mu"], "ha": z["ha"],
-                "rhat": meta["rhat"], "idx": meta["idx"]}
+                "rhat": meta["rhat"], "idx": meta["idx"],
+                "beta_att": meta.get("beta_att"), "beta_def": meta.get("beta_def")}
     s = fit(**kw)
     IDATA_CACHE.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(IDATA_CACHE, att=s["att"], deff=s["deff"], mu=s["mu"], ha=s["ha"])
-    IDX_CACHE.write_text(json.dumps({"idx": s["idx"], "rhat": s["rhat"]}))
+    IDX_CACHE.write_text(json.dumps({"idx": s["idx"], "rhat": s["rhat"],
+                                     "beta_att": s["beta_att"], "beta_def": s["beta_def"]}))
     return s
 
 
@@ -183,14 +214,70 @@ def champion_probabilities(samples: dict, n_draws: int = 200, sims_per_draw: int
     return pd.DataFrame(rows).sort_values("champ_mean", ascending=False).reset_index(drop=True)
 
 
+def predict_match_probs(samples: dict, home: str, away: str, neutral: bool,
+                        n_draws: int = 400, seed: int = 3) -> tuple[float, float, float]:
+    """Posterior-predictive (H, D, A) for one match, marginalising over draws."""
+    from scipy.stats import poisson
+    idx = samples["idx"]
+    if home not in idx or away not in idx:
+        return (1 / 3, 1 / 3, 1 / 3)
+    hi, ai = idx[home], idx[away]
+    att, deff, mu, ha = samples["att"], samples["deff"], samples["mu"], samples["ha"]
+    rng = np.random.default_rng(seed)
+    sel = rng.choice(att.shape[1], size=min(n_draws, att.shape[1]), replace=False)
+    nn = 0.0 if neutral else 1.0
+    g = np.arange(11)
+    pH = pD = pA = 0.0
+    for s in sel:
+        lh = np.exp(mu[s] + ha[s] * nn + att[hi, s] - deff[ai, s])
+        la = np.exp(mu[s] + att[ai, s] - deff[hi, s])
+        M = np.outer(poisson.pmf(g, lh), poisson.pmf(g, la))
+        pH += np.tril(M, -1).sum(); pD += np.trace(M); pA += np.triu(M, 1).sum()
+    n = len(sel)
+    return pH / n, pD / n, pA / n
+
+
+def score_played_games(samples: dict) -> pd.DataFrame:
+    """Predict every completed 2026 WC game (out-of-sample) and score it."""
+    res = load_processed_results()
+    wc = load_wc2026(save=False)
+    fixtures = wc.fixtures.set_index("match_id")
+    played = res[(res["tournament"] == "FIFA World Cup") & (res["date"].dt.year == 2026)
+                 & res["home_score"].notna()]
+    rows = []
+    for _, m in played.iterrows():
+        if m["match_id"] not in fixtures.index:
+            continue
+        neut = bool(fixtures.loc[m["match_id"], "neutral"])
+        pH, pD, pA = predict_match_probs(samples, m["home_code"], m["away_code"], neut)
+        hg, ag = int(m["home_score"]), int(m["away_score"])
+        actual = "H" if hg > ag else "D" if hg == ag else "A"
+        oh = {"H": (1, 0, 0), "D": (0, 1, 0), "A": (0, 0, 1)}[actual]
+        brier = sum((p - o) ** 2 for p, o in zip((pH, pD, pA), oh)) / 3
+        rows.append({"match": f"{m['home_code']} v {m['away_code']}",
+                     "actual": f"{hg}-{ag}", "pH": pH, "pD": pD, "pA": pA,
+                     "p_actual": (pH, pD, pA)[("H", "D", "A").index(actual)],
+                     "brier": brier})
+    return pd.DataFrame(rows)
+
+
 if __name__ == "__main__":
-    print("Fitting Bayesian hierarchical model (cached after first run)...")
+    print("Fitting Bayesian hierarchical model with player-composition priors...")
     samples = fit_cached()
-    print(f"max R-hat over all params (want <1.01): {samples['rhat']:.3f}")
-    print(f"home advantage (log): {samples['ha'].mean():.3f}  baseline mu: {samples['mu'].mean():.3f}")
+    print(f"max R-hat (want <1.01): {samples['rhat']:.3f}")
+    print(f"player->attack coef beta_att={samples['beta_att']:.3f}, "
+          f"player->defence beta_def={samples['beta_def']:.3f}  "
+          f"(>0 means stronger squads score more / concede less)")
+
     df = champion_probabilities(samples)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUT, index=False)
     print("\nChampion probabilities with 90% credible intervals:")
-    for _, r in df.head(12).iterrows():
+    for _, r in df.head(8).iterrows():
         print(f"  {r['team']}: {r['champ_mean']*100:4.1f}%  [{r['champ_lo']*100:4.1f}% – {r['champ_hi']*100:4.1f}%]")
+
+    sc = score_played_games(samples)
+    print(f"\nPredictions for the {len(sc)} games played so far (out-of-sample):")
+    for _, r in sc.iterrows():
+        print(f"  {r['match']:12s} actual {r['actual']}  | H {r['pH']*100:2.0f}% D {r['pD']*100:2.0f}% A {r['pA']*100:2.0f}%")
+    print(f"\nBayesian (player-prior) Brier over {len(sc)} games: {sc['brier'].mean():.4f}")
