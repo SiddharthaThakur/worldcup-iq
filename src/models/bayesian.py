@@ -214,27 +214,51 @@ def champion_probabilities(samples: dict, n_draws: int = 200, sims_per_draw: int
     return pd.DataFrame(rows).sort_values("champ_mean", ascending=False).reset_index(drop=True)
 
 
-def predict_match_probs(samples: dict, home: str, away: str, neutral: bool,
-                        n_draws: int = 400, seed: int = 3) -> tuple[float, float, float]:
-    """Posterior-predictive (H, D, A) for one match, marginalising over draws."""
+def predict_match_full(samples: dict, home: str, away: str, neutral: bool,
+                       n_draws: int = 400, seed: int = 3):
+    """Posterior-predictive (pH, pD, pA, mean_λ_home, mean_λ_away) for a match."""
     from scipy.stats import poisson
     idx = samples["idx"]
     if home not in idx or away not in idx:
-        return (1 / 3, 1 / 3, 1 / 3)
+        return (1 / 3, 1 / 3, 1 / 3, 1.3, 1.3)
     hi, ai = idx[home], idx[away]
     att, deff, mu, ha = samples["att"], samples["deff"], samples["mu"], samples["ha"]
     rng = np.random.default_rng(seed)
     sel = rng.choice(att.shape[1], size=min(n_draws, att.shape[1]), replace=False)
     nn = 0.0 if neutral else 1.0
     g = np.arange(11)
-    pH = pD = pA = 0.0
+    pH = pD = pA = lh_sum = la_sum = 0.0
     for s in sel:
         lh = np.exp(mu[s] + ha[s] * nn + att[hi, s] - deff[ai, s])
         la = np.exp(mu[s] + att[ai, s] - deff[hi, s])
+        lh_sum += lh; la_sum += la
         M = np.outer(poisson.pmf(g, lh), poisson.pmf(g, la))
         pH += np.tril(M, -1).sum(); pD += np.trace(M); pA += np.triu(M, 1).sum()
     n = len(sel)
-    return pH / n, pD / n, pA / n
+    return pH / n, pD / n, pA / n, lh_sum / n, la_sum / n
+
+
+def predict_match_probs(samples: dict, home: str, away: str, neutral: bool,
+                        n_draws: int = 400, seed: int = 3) -> tuple[float, float, float]:
+    """Posterior-predictive (H, D, A) for one match."""
+    return predict_match_full(samples, home, away, neutral, n_draws, seed)[:3]
+
+
+def build_bayesian_predictions(samples: dict) -> pd.DataFrame:
+    """Frozen Bayesian per-game predictions for all 72 group games (H/D/A +
+    predicted score). Out-of-sample (model fit excludes the 2026 WC)."""
+    wc = load_wc2026(save=False)
+    rows = []
+    for _, r in wc.fixtures.iterrows():
+        pH, pD, pA, lh, la = predict_match_full(
+            samples, r["home_code"], r["away_code"], bool(r["neutral"]))
+        rows.append({"match_id": r["match_id"],
+                     "champion_bayesian_H": round(pH, 4), "champion_bayesian_D": round(pD, 4),
+                     "champion_bayesian_A": round(pA, 4),
+                     "champion_bayesian_ph": round(lh), "champion_bayesian_pa": round(la)})
+    df = pd.DataFrame(rows)
+    df.to_csv(Path("data/predictions/bayesian_predictions.csv"), index=False)
+    return df
 
 
 def score_played_games(samples: dict) -> pd.DataFrame:

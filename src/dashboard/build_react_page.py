@@ -20,6 +20,7 @@ HISTORY = Path("data/predictions/champion_history.csv")
 SCORECARD = Path("data/predictions/scorecard.json")
 LOCKED = Path("data/predictions/locked_predictions.csv")
 MODEL_PREDS = Path("data/predictions/model_predictions.csv")
+BAYES_PREDS = Path("data/predictions/bayesian_predictions.csv")
 OUT = Path("dashboard/predictions.html")
 
 
@@ -47,6 +48,8 @@ def _records() -> list[dict]:
     actual = _actual_results()
     mp = (pd.read_csv(MODEL_PREDS).set_index("match_id").to_dict("index")
           if MODEL_PREDS.exists() else {})
+    bp = (pd.read_csv(BAYES_PREDS).set_index("match_id").to_dict("index")
+          if BAYES_PREDS.exists() else {})
     recs = []
     for _, r in df.iterrows():
         home, away = str(r["match"]).split(" v ")
@@ -59,9 +62,11 @@ def _records() -> list[dict]:
             "status": "upcoming",
         }
         m = mp.get(mid)
-        if m:  # frozen pre-match predicted scores, both models
+        b = bp.get(mid)
+        if m:  # frozen pre-match predicted score, champion+
             rec["predScore"] = f"{int(m['champion_plus_ph'])}-{int(m['champion_plus_pa'])}"
-            rec["predScoreT"] = f"{int(m['champion_tournament_ph'])}-{int(m['champion_tournament_pa'])}"
+        if b:  # Bayesian (player-prior) predicted score
+            rec["predScoreB"] = f"{int(b['champion_bayesian_ph'])}-{int(b['champion_bayesian_pa'])}"
         if mid in actual:
             hg, ag, res = actual[mid]
             rec["status"] = "played"
@@ -415,7 +420,7 @@ function Move({m}){
 function Scorecard(){
   const sc = SCORECARD;
   if(!sc.models || !sc.n_completed) return null;
-  const names = {champion_plus:'Champion+ (player composition)', champion_tournament:'Tournament-fit', baseline_elo:'Simple Elo baseline', market:'Bookmakers'};
+  const names = {champion_plus:'Champion+ (player composition)', champion_bayesian:'Bayesian (player-prior)', baseline_elo:'Simple Elo baseline', market:'Bookmakers'};
   const entries = Object.entries(sc.models).filter(([k,v])=>v.brier!=null);
   if(!entries.length) return null;
   const best = Math.min(...entries.map(([k,v])=>v.brier));
@@ -480,7 +485,7 @@ function Match({m}){
           {m.correct!==undefined && (m.correct
             ? <span className="ok">✓ favourite won</span>
             : <span className="miss">✗ upset</span>)}
-          {m.predScore && <span className="preds">predicted — champion+ <b>{m.predScore}</b> · tournament <b>{m.predScoreT}</b></span>}
+          {m.predScore && <span className="preds">predicted — champion+ <b>{m.predScore}</b> · bayesian <b>{m.predScoreB||'—'}</b></span>}
         </div>
       ) : (
         <>
@@ -490,7 +495,7 @@ function Match({m}){
             <div style={{width:pct(m.pAway)+'%',background:'var(--away)'}}>{pct(m.pAway)}%</div>
           </div>
           <div className="meta">
-            <span>Predicted — champion+ <b>{m.predScore||xgRounded}</b> · tournament <b>{m.predScoreT||'—'}</b></span>
+            <span>Predicted — champion+ <b>{m.predScore||xgRounded}</b> · bayesian <b>{m.predScoreB||'—'}</b></span>
             {m.alt!==0 && <span className="flag">altitude {m.alt} Elo</span>}
             {m.conf<0.5 && <span className="lowconf">low player-data · leans Elo</span>}
           </div>

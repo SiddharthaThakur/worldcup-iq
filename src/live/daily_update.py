@@ -349,13 +349,20 @@ def update(n_sims: int = 20000) -> dict:
     elif not HISTORY.exists():
         snap.to_csv(HISTORY, index=False)
 
+    # Merge in the frozen offline Bayesian predictions (precomputed; the daily
+    # run needs no PyMC). Drop tournament-fit from the scorecard.
+    bayes_path = PRED / "bayesian_predictions.csv"
+    if bayes_path.exists():
+        locked = locked.merge(pd.read_csv(bayes_path), on="match_id", how="left")
+
     # 5. score locked predictions vs actual results
-    models = sorted({c.rsplit("_", 1)[0] for c in locked.columns if c.endswith(("_H",))})
+    models = [m for m in ("champion_plus", "champion_bayesian", "baseline_elo")
+              if f"{m}_H" in locked.columns]
     scores = {}
     for mdl in models:
         pairs = []
         for _, r in locked.iterrows():
-            if r["match_id"] in actual_by_id:
+            if r["match_id"] in actual_by_id and pd.notna(r.get(f"{mdl}_H")):
                 probs = {"H": r[f"{mdl}_H"], "D": r[f"{mdl}_D"], "A": r[f"{mdl}_A"]}
                 pairs.append((probs, actual_by_id[r["match_id"]]))
         scores[mdl] = {"n": len(pairs), "brier": running_brier(pairs)}
