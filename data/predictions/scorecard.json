@@ -1,18 +1,18 @@
 {
-  "updated": "2026-06-17",
-  "n_completed": 20,
+  "updated": "2026-06-18",
+  "n_completed": 24,
   "models": {
     "champion_plus": {
-      "n": 20,
-      "brier": 0.21279946533333333
+      "n": 24,
+      "brier": 0.20952543
     },
     "champion_bayesian": {
-      "n": 20,
-      "brier": 0.2077795745
+      "n": 24,
+      "brier": 0.2054578776388889
     },
     "baseline_elo": {
-      "n": 20,
-      "brier": 0.23809199416666668
+      "n": 24,
+      "brier": 0.23710891708333334
     }
   }
 }
