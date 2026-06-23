@@ -135,6 +135,42 @@ def resolve_knockout(
     return bool(rng.random() < 0.5 + edge)
 
 
+def _resolve_h2h_tie(
+    tied: list[dict], h2h: dict, rng: np.random.Generator,
+) -> list[dict]:
+    """Break a tie using head-to-head results among the tied teams.
+
+    FIFA 2026 tiebreaker after equal points (changed from prior WCs):
+      1. H2H points among tied teams
+      2. H2H goal difference
+      3. H2H goals scored
+      4. Overall goal difference (all group matches)
+      5. Overall goals scored
+      6. Random (proxy for fair play / FIFA ranking / lots)
+    """
+    tied_teams = {t["team"] for t in tied}
+    stats = {t["team"]: {"pts": 0, "gd": 0, "gf": 0} for t in tied}
+    for t1 in tied_teams:
+        for t2 in tied_teams:
+            if t1 == t2:
+                continue
+            ga, gb = h2h[(t1, t2)]
+            stats[t1]["gf"] += ga
+            stats[t1]["gd"] += ga - gb
+            if ga > gb:
+                stats[t1]["pts"] += 3
+            elif ga == gb:
+                stats[t1]["pts"] += 1
+    return sorted(
+        tied,
+        key=lambda t: (stats[t["team"]]["pts"], stats[t["team"]]["gd"],
+                        stats[t["team"]]["gf"],
+                        t["gd"], t["gf"],
+                        rng.random()),
+        reverse=True,
+    )
+
+
 def play_group(
     teams: list[str],
     strengths: dict[str, float],
@@ -150,12 +186,12 @@ def play_group(
     remaining matches are simulated. This is how live odds sharpen toward
     reality as the group stage unfolds.
 
-    Tiebreakers (FIFA): points → goal difference → goals scored → random
-    (we skip head-to-head and fair play for simulation tractability; this
-    slightly misorders rare three-way ties — documented limitation).
+    Tiebreakers (FIFA 2026 — H2H before overall GD, changed from prior WCs):
+    points → H2H points → H2H GD → H2H GF → overall GD → overall GF → random.
     """
     completed = completed or {}
     table = {t: {"team": t, "points": 0, "gd": 0, "gf": 0} for t in teams}
+    h2h: dict[tuple[str, str], tuple[int, int]] = {}
     for i in range(len(teams)):
         for j in range(i + 1, len(teams)):
             a, b = teams[i], teams[j]
@@ -164,6 +200,8 @@ def play_group(
                 ga, gb = real[a], real[b]
             else:
                 ga, gb = simulate_match_oriented(a, b, strengths, host_teams, params, rng)
+            h2h[(a, b)] = (ga, gb)
+            h2h[(b, a)] = (gb, ga)
             table[a]["gf"] += ga; table[a]["gd"] += ga - gb
             table[b]["gf"] += gb; table[b]["gd"] += gb - ga
             if ga > gb:
@@ -173,12 +211,24 @@ def play_group(
             else:
                 table[a]["points"] += 1; table[b]["points"] += 1
 
-    standings = sorted(
-        table.values(),
-        key=lambda r: (r["points"], r["gd"], r["gf"], rng.random()),
-        reverse=True,
-    )
-    return GroupResult(group="", standings=standings)
+    def points_key(r):
+        return r["points"]
+
+    team_list = sorted(table.values(), key=points_key, reverse=True)
+
+    result = []
+    i = 0
+    while i < len(team_list):
+        j = i + 1
+        while j < len(team_list) and points_key(team_list[j]) == points_key(team_list[i]):
+            j += 1
+        tied = team_list[i:j]
+        if len(tied) > 1:
+            tied = _resolve_h2h_tie(tied, h2h, rng)
+        result.extend(tied)
+        i = j
+
+    return GroupResult(group="", standings=result)
 
 
 def rank_third_place(group_results: list[GroupResult],
