@@ -25,7 +25,7 @@ from collections import defaultdict
 import numpy as np
 
 from src.models.dixon_coles import DixonColesParams
-from src.simulation.tournament import play_group
+from src.simulation.tournament import play_group, resolve_knockout, SimulationConfig
 
 # Each entry: (match_no, slot_a, slot_b). Slots:
 #   ("W", "E")  winner of group E
@@ -158,3 +158,59 @@ def build_progressive_bracket(positions, groups) -> list[dict]:
                          "from": list(feeders[name][m])} for m in order[name]],
         })
     return rounds
+
+
+def _knockout_advance_prob(team_a, team_b, strengths, host_teams, params,
+                           n=5000, seed=42):
+    """P(team_a advances) over a knockout tie, including ET + penalties."""
+    config = SimulationConfig()
+    rng = np.random.default_rng(seed)
+    wins = sum(resolve_knockout(team_a, team_b, strengths, host_teams,
+                                params, rng, config) for _ in range(n))
+    return round(wins / n, 3)
+
+
+def _is_confirmed(match):
+    """A slot is confirmed when it has exactly one team at >=99.5%."""
+    return (len(match.get("a", [])) == 1 and match["a"][0]["p"] >= 0.995 and
+            len(match.get("b", [])) == 1 and match["b"][0]["p"] >= 0.995)
+
+
+def annotate_knockout_probs(bracket, strengths, host_teams, params):
+    """Add advancement probabilities to confirmed matchups and propagate
+    to later rounds. Modifies the bracket list in place."""
+    by_match = {}
+    for rnd in bracket:
+        for m in rnd["matches"]:
+            by_match[m["match"]] = m
+
+    # R32: compute advancement probs for confirmed ties
+    r32 = bracket[0]["matches"]
+    for m in r32:
+        if _is_confirmed(m):
+            ta, tb = m["a"][0]["team"], m["b"][0]["team"]
+            pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
+            m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
+
+    # Later rounds: populate candidates from feeder matches
+    for rnd in bracket[1:]:
+        for m in rnd["matches"]:
+            if "from" not in m:
+                continue
+            fa, fb = m["from"]
+            ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
+            m["a"] = _feeder_candidates(ma)
+            m["b"] = _feeder_candidates(mb)
+
+
+def _feeder_candidates(feeder):
+    """Build candidate list for a slot fed by the winner of a prior match."""
+    if not feeder:
+        return []
+    if "pAdv" in feeder:
+        return [{"team": t, "p": p} for t, p in
+                sorted(feeder["pAdv"].items(), key=lambda x: -x[1])]
+    if _is_confirmed(feeder):
+        return [{"team": feeder["a"][0]["team"], "p": 0.5},
+                {"team": feeder["b"][0]["team"], "p": 0.5}]
+    return []

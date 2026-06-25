@@ -333,7 +333,10 @@ def update(n_sims: int = 20000) -> dict:
     from src.simulation.bracket import build_progressive_bracket, simulate_positions
     positions = simulate_positions(wc.groups, champ, {"USA", "CAN", "MEX"}, params,
                                    n_sims=min(n_sims, 20000), completed=completed_sim)
-    BRACKET.write_text(json.dumps(build_progressive_bracket(positions, wc.groups)))
+    bracket = build_progressive_bracket(positions, wc.groups)
+    from src.simulation.bracket import annotate_knockout_probs
+    annotate_knockout_probs(bracket, champ, {"USA", "CAN", "MEX"}, params)
+    BRACKET.write_text(json.dumps(bracket))
 
     # 4. movement vs previous snapshot
     prev = {}
