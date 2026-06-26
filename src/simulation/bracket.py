@@ -25,12 +25,13 @@ from collections import defaultdict
 import numpy as np
 
 from src.models.dixon_coles import DixonColesParams
+from src.simulation.fifa_annex_c import lookup_assignment, THIRD_SLOTS
 from src.simulation.tournament import play_group, resolve_knockout, SimulationConfig
 
 # Each entry: (match_no, slot_a, slot_b). Slots:
 #   ("W", "E")  winner of group E
 #   ("R", "B")  runner-up of group B
-#   ("T", ["A","B","C","D","F"])  best third place from one of these groups
+#   ("T", ["A","B","C","D","F","H"])  best third place from one of these groups
 R32_BRACKET = [
     (73, ("R", "A"), ("R", "B")),
     (74, ("W", "E"), ("T", ["A", "B", "C", "D", "F"])),
@@ -40,8 +41,8 @@ R32_BRACKET = [
     (78, ("R", "E"), ("R", "I")),
     (79, ("W", "A"), ("T", ["C", "E", "F", "H", "I"])),
     (80, ("W", "L"), ("T", ["E", "H", "I", "J", "K"])),
-    (81, ("W", "D"), ("T", ["B", "E", "F", "I", "J"])),
-    (82, ("W", "G"), ("T", ["A", "E", "H", "I", "J"])),
+    (81, ("W", "D"), ("T", ["B", "E", "F", "H", "I", "J"])),
+    (82, ("W", "G"), ("T", ["A", "D", "E", "H", "I", "J"])),
     (83, ("R", "K"), ("R", "L")),
     (84, ("W", "H"), ("R", "J")),
     (85, ("W", "B"), ("T", ["E", "F", "G", "I", "J"])),
@@ -49,47 +50,6 @@ R32_BRACKET = [
     (87, ("W", "K"), ("T", ["D", "E", "I", "J", "L"])),
     (88, ("R", "D"), ("R", "G")),
 ]
-
-
-THIRD_SLOTS = {
-    74: frozenset("ABCDF"),
-    77: frozenset("CDFGH"),
-    79: frozenset("CEFHI"),
-    80: frozenset("EHIJK"),
-    81: frozenset("BEFIJ"),
-    82: frozenset("AEHIJ"),
-    85: frozenset("EFGIJ"),
-    87: frozenset("DEIJL"),
-}
-_SLOT_ORDER = sorted(THIRD_SLOTS.keys())
-
-
-def _assign_thirds(qualifying_groups: set[str], rng) -> dict[int, str] | None:
-    """Assign 8 qualifying third-place groups to R32 slots via backtracking.
-
-    FIFA's Annex C defines a specific assignment for each of the 495
-    combinations. We approximate by finding a valid bipartite matching
-    (randomised to avoid systematic bias when multiple solutions exist).
-    """
-    qual = frozenset(qualifying_groups)
-
-    def backtrack(idx, used, assignment):
-        if idx == len(_SLOT_ORDER):
-            return dict(assignment)
-        slot = _SLOT_ORDER[idx]
-        eligible = sorted(THIRD_SLOTS[slot] & qual - used)
-        rng.shuffle(eligible)
-        for g in eligible:
-            assignment.append((slot, g))
-            used.add(g)
-            result = backtrack(idx + 1, used, assignment)
-            if result is not None:
-                return result
-            used.discard(g)
-            assignment.pop()
-        return None
-
-    return backtrack(0, set(), [])
 
 
 def simulate_positions(groups, strengths, host_teams, params: DixonColesParams,
@@ -121,7 +81,7 @@ def simulate_positions(groups, strengths, host_teams, params: DixonColesParams,
         qual_groups = {team_group[r["team"]] for r in best}
         for r in best:
             third_q[r["team"]] += 1
-        assignment = _assign_thirds(qual_groups, rng)
+        assignment = lookup_assignment(qual_groups)
         if assignment:
             for match_no, g in assignment.items():
                 third_slot[third_by_group[g]][match_no] += 1
