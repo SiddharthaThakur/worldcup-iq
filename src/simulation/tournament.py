@@ -38,6 +38,7 @@ from src.models.dixon_coles import (
     scoreline_matrix,
     strengths_to_expected_goals,
 )
+from src.simulation.fifa_annex_c import lookup_assignment
 
 N_GROUPS = 12
 GROUP_NAMES = "ABCDEFGHIJKL"
@@ -242,39 +243,66 @@ def rank_third_place(group_results: list[GroupResult],
     return [r["team"] for r in thirds_sorted[:THIRD_PLACE_QUALIFIERS]]
 
 
+_R32_MATCHES = [
+    (73, "R", "A", "R", "B"),
+    (74, "W", "E", "T", "74"),
+    (75, "W", "F", "R", "C"),
+    (76, "W", "C", "R", "F"),
+    (77, "W", "I", "T", "77"),
+    (78, "R", "E", "R", "I"),
+    (79, "W", "A", "T", "79"),
+    (80, "W", "L", "T", "80"),
+    (81, "W", "D", "T", "81"),
+    (82, "W", "G", "T", "82"),
+    (83, "R", "K", "R", "L"),
+    (84, "W", "H", "R", "J"),
+    (85, "W", "B", "T", "85"),
+    (86, "W", "J", "R", "H"),
+    (87, "W", "K", "T", "87"),
+    (88, "R", "D", "R", "G"),
+]
+_R16_PAIRS = [(89, 74, 77), (90, 73, 75), (91, 76, 78), (92, 79, 80),
+              (93, 83, 84), (94, 81, 82), (95, 86, 88), (96, 85, 87)]
+_QF_PAIRS = [(97, 89, 90), (98, 93, 94), (99, 91, 92), (100, 95, 96)]
+_SF_PAIRS = [(101, 97, 98), (102, 99, 100)]
+_FINAL_PAIR = (104, 101, 102)
+
+
 def build_round_of_32(group_results: list[GroupResult],
-                      third_qualifiers: list[str],
-                      rng: np.random.Generator) -> list[tuple[str, str]]:
-    """Pair the 32 qualified teams into Round of 32 ties.
+                      rng: np.random.Generator) -> dict[int, tuple[str, str]]:
+    """Build R32 ties using the actual FIFA bracket and Annex C table.
 
-    NOTE: FIFA's actual bracket assignment maps specific group positions to
-    specific bracket slots, with third-place assignments depending on WHICH
-    groups they came from (a lookup table of combinations). Implementing the
-    exact published bracket is a Phase-2 refinement; this version uses the
-    correct structural skeleton (winners face thirds/runners-up, same-group
-    rematches avoided where possible) which preserves champion-probability
-    accuracy to within simulation noise. DECISIONS.md D010 tracks this.
+    Returns {match_number: (team_a, team_b)}.
     """
-    winners = [gr.standings[0]["team"] for gr in group_results]
-    runners = [gr.standings[1]["team"] for gr in group_results]
-    thirds = list(third_qualifiers)
-    rng.shuffle(thirds)
+    by_group = {gr.group: gr for gr in group_results}
+    team_group = {}
+    for gr in group_results:
+        for r in gr.standings:
+            team_group[r["team"]] = gr.group
 
-    ties: list[tuple[str, str]] = []
-    # 8 group winners vs the 8 third-place qualifiers
-    winner_idx = list(range(N_GROUPS))
-    rng.shuffle(winner_idx)
-    for k in range(THIRD_PLACE_QUALIFIERS):
-        ties.append((winners[winner_idx[k]], thirds[k]))
-    # Remaining 4 winners vs 4 runners-up; remaining 8 runners-up pair off
-    remaining_winners = [winners[i] for i in winner_idx[THIRD_PLACE_QUALIFIERS:]]
-    rng.shuffle(runners)
-    for k in range(4):
-        ties.append((remaining_winners[k], runners[k]))
-    rest = runners[4:]
-    for k in range(0, len(rest), 2):
-        ties.append((rest[k], rest[k + 1]))
+    thirds = [gr.standings[2] for gr in group_results]
+    best = sorted(thirds, key=lambda r: (r["points"], r["gd"], r["gf"], rng.random()),
+                  reverse=True)[:THIRD_PLACE_QUALIFIERS]
+    qual_groups = {team_group[r["team"]] for r in best}
+    third_by_group = {team_group[r["team"]]: r["team"] for r in best}
+
+    assignment = lookup_assignment(qual_groups)
+
+    ties = {}
+    for match_no, kind_a, ref_a, kind_b, ref_b in _R32_MATCHES:
+        a = _resolve_slot(kind_a, ref_a, by_group, third_by_group, assignment, match_no)
+        b = _resolve_slot(kind_b, ref_b, by_group, third_by_group, assignment, match_no)
+        ties[match_no] = (a, b)
     return ties
+
+
+def _resolve_slot(kind, ref, by_group, third_by_group, assignment, match_no):
+    if kind == "W":
+        return by_group[ref].standings[0]["team"]
+    if kind == "R":
+        return by_group[ref].standings[1]["team"]
+    g = assignment[match_no]
+    return third_by_group[g]
 
 
 def simulate_tournament_once(
@@ -295,24 +323,26 @@ def simulate_tournament_once(
         gr.group = gname
         group_results.append(gr)
 
-    thirds = rank_third_place(group_results, rng)
-    ties = build_round_of_32(group_results, thirds, rng)
+    r32 = build_round_of_32(group_results, rng)
 
-    stage_names = ["r32", "r16", "qf", "sf", "final"]
-    current = ties
-    for stage in stage_names:
-        for a, b in current:
+    match_winner: dict[int, str] = {}
+
+    for match_no, (a, b) in r32.items():
+        reached[a] = "r32"
+        reached[b] = "r32"
+        a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
+        match_winner[match_no] = a if a_wins else b
+
+    for stage, pairs in [("r16", _R16_PAIRS), ("qf", _QF_PAIRS),
+                         ("sf", _SF_PAIRS), ("final", [_FINAL_PAIR])]:
+        for match_no, feed_a, feed_b in pairs:
+            a, b = match_winner[feed_a], match_winner[feed_b]
             reached[a] = stage
             reached[b] = stage
-        winners = []
-        for a, b in current:
             a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
-            winners.append(a if a_wins else b)
-        if stage == "final":
-            reached[winners[0]] = "champion"
-            break
-        current = [(winners[k], winners[k + 1]) for k in range(0, len(winners), 2)]
+            match_winner[match_no] = a if a_wins else b
 
+    reached[match_winner[_FINAL_PAIR[0]]] = "champion"
     return reached
 
 
