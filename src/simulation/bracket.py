@@ -51,40 +51,90 @@ R32_BRACKET = [
 ]
 
 
+THIRD_SLOTS = {
+    74: frozenset("ABCDF"),
+    77: frozenset("CDFGH"),
+    79: frozenset("CEFHI"),
+    80: frozenset("EHIJK"),
+    81: frozenset("BEFIJ"),
+    82: frozenset("AEHIJ"),
+    85: frozenset("EFGIJ"),
+    87: frozenset("DEIJL"),
+}
+_SLOT_ORDER = sorted(THIRD_SLOTS.keys())
+
+
+def _assign_thirds(qualifying_groups: set[str], rng) -> dict[int, str] | None:
+    """Assign 8 qualifying third-place groups to R32 slots via backtracking.
+
+    FIFA's Annex C defines a specific assignment for each of the 495
+    combinations. We approximate by finding a valid bipartite matching
+    (randomised to avoid systematic bias when multiple solutions exist).
+    """
+    qual = frozenset(qualifying_groups)
+
+    def backtrack(idx, used, assignment):
+        if idx == len(_SLOT_ORDER):
+            return dict(assignment)
+        slot = _SLOT_ORDER[idx]
+        eligible = sorted(THIRD_SLOTS[slot] & qual - used)
+        rng.shuffle(eligible)
+        for g in eligible:
+            assignment.append((slot, g))
+            used.add(g)
+            result = backtrack(idx + 1, used, assignment)
+            if result is not None:
+                return result
+            used.discard(g)
+            assignment.pop()
+        return None
+
+    return backtrack(0, set(), [])
+
+
 def simulate_positions(groups, strengths, host_teams, params: DixonColesParams,
                        n_sims: int = 20000, completed: dict | None = None,
                        seed: int = 1) -> dict:
-    """Per-team probabilities of finishing 1st, 2nd, and 3rd-and-qualifying.
+    """Per-team probabilities of finishing 1st, 2nd, and per-slot 3rd.
 
-    Returns {team: {"p1": .., "p2": .., "p3q": .., "group": g}}.
+    Returns {team: {"p1": .., "p2": .., "p3q": .., "p3_slot": {match: p}, "group": g}}.
+    p3_slot gives the probability of filling each specific R32 slot.
     """
     rng = np.random.default_rng(seed)
     first = defaultdict(int)
     second = defaultdict(int)
     third_q = defaultdict(int)
+    third_slot = defaultdict(lambda: defaultdict(int))
     team_group = {t: g for g, ts in groups.items() for t in ts}
 
     for _ in range(n_sims):
-        thirds = []  # (team, points, gd, gf)
+        thirds = []
+        third_by_group = {}
         for g, teams in groups.items():
             gr = play_group(teams, strengths, host_teams, params, rng, completed=completed)
             first[gr.standings[0]["team"]] += 1
             second[gr.standings[1]["team"]] += 1
             thirds.append(gr.standings[2])
-        # 8 best third-placed teams qualify
+            third_by_group[g] = gr.standings[2]["team"]
         best = sorted(thirds, key=lambda r: (r["points"], r["gd"], r["gf"], rng.random()),
                       reverse=True)[:8]
+        qual_groups = {team_group[r["team"]] for r in best}
         for r in best:
             third_q[r["team"]] += 1
+        assignment = _assign_thirds(qual_groups, rng)
+        if assignment:
+            for match_no, g in assignment.items():
+                third_slot[third_by_group[g]][match_no] += 1
 
     out = {}
     for t, g in team_group.items():
+        slots = {m: c / n_sims for m, c in third_slot[t].items()} if t in third_slot else {}
         out[t] = {"group": g, "p1": first[t] / n_sims, "p2": second[t] / n_sims,
-                  "p3q": third_q[t] / n_sims}
+                  "p3q": third_q[t] / n_sims, "p3_slot": slots}
     return out
 
 
-def _slot_candidates(slot, positions, groups, top_n=3) -> list[dict]:
+def _slot_candidates(slot, match_no, positions, groups, top_n=3) -> list[dict]:
     """Top-N teams for one slot, with their probability of filling it."""
     kind = slot[0]
     if kind in ("W", "R"):
@@ -94,11 +144,12 @@ def _slot_candidates(slot, positions, groups, top_n=3) -> list[dict]:
         ranked = sorted(teams, key=lambda t: positions[t][key], reverse=True)
         return [{"team": t, "p": positions[t][key]} for t in ranked[:top_n]
                 if positions[t][key] > 0.005]
-    # third-place slot: pool eligible groups' teams by 3rd-and-qualify prob
     pool = [t for g in slot[1] for t in groups[g]]
-    ranked = sorted(pool, key=lambda t: positions[t]["p3q"], reverse=True)
-    return [{"team": t, "p": positions[t]["p3q"]} for t in ranked[:top_n]
-            if positions[t]["p3q"] > 0.005]
+    ranked = sorted(pool, key=lambda t: positions[t]["p3_slot"].get(match_no, 0),
+                    reverse=True)
+    return [{"team": t, "p": positions[t]["p3_slot"].get(match_no, 0)}
+            for t in ranked[:top_n]
+            if positions[t]["p3_slot"].get(match_no, 0) > 0.005]
 
 
 def _slot_label(slot) -> str:
@@ -116,8 +167,8 @@ def project_bracket(positions, groups) -> list[dict]:
         out.append({
             "match": match_no,
             "a_label": _slot_label(slot_a), "b_label": _slot_label(slot_b),
-            "a": _slot_candidates(slot_a, positions, groups),
-            "b": _slot_candidates(slot_b, positions, groups),
+            "a": _slot_candidates(slot_a, match_no, positions, groups),
+            "b": _slot_candidates(slot_b, match_no, positions, groups),
         })
     return out
 
