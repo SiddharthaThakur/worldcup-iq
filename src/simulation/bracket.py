@@ -203,7 +203,8 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
             m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
 
-    # Later rounds: populate candidates from feeder matches
+    # Later rounds: populate candidates from feeder matches and compute
+    # advancement probs when both feeders are confirmed
     for rnd in bracket[1:]:
         for m in rnd["matches"]:
             if "from" not in m:
@@ -212,6 +213,33 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
             m["a"] = _feeder_candidates(ma)
             m["b"] = _feeder_candidates(mb)
+            if ma.get("pAdv") and mb.get("pAdv"):
+                m["pAdv"] = _compute_round_pAdv(
+                    ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
+
+
+def _compute_round_pAdv(adv_a, adv_b, strengths, host_teams, params):
+    """Compute advancement probabilities for a match where both feeders are confirmed.
+
+    adv_a/adv_b: {team: p_reach} from each feeder's pAdv.
+    Returns {team: p_advance_through_this_match} for all candidates.
+    """
+    ko_cache = {}
+    def ko(t1, t2):
+        if (t1, t2) not in ko_cache:
+            p = _knockout_advance_prob(t1, t2, strengths, host_teams, params)
+            ko_cache[(t1, t2)] = p
+            ko_cache[(t2, t1)] = round(1 - p, 3)
+        return ko_cache[(t1, t2)]
+
+    result = {}
+    for ta, pa in adv_a.items():
+        total = sum(pb * ko(ta, tb) for tb, pb in adv_b.items())
+        result[ta] = round(pa * total, 3)
+    for tb, pb in adv_b.items():
+        total = sum(pa * ko(tb, ta) for ta, pa in adv_a.items())
+        result[tb] = round(pb * total, 3)
+    return result
 
 
 def _feeder_candidates(feeder):

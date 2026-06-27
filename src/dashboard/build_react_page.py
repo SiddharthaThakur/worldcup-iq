@@ -285,18 +285,21 @@ const BRACKET = __BRACKET__;
 const GOALS = __GOALS__;
 const TREE = __TREE__;
 
-function TSlot({cands, label, advPct}){
+function TSlot({cands, label, adv}){
   const locked = cands.length===1 && cands[0].p>=0.995;
   return (
     <div className="tslot">
       {label && <div className="slbl">{label}</div>}
       {!cands.length ? <span className="ct dim">—</span> :
-        cands.map((c,i)=>(
-          <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
-            <span className="ct">{c.team}</span>
-            <span className="cp">{advPct!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{advPct}%</span>✓</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
-          </div>
-        ))}
+        cands.map((c,i)=>{
+          const ap = adv && adv[c.team]!=null ? Math.round(adv[c.team]*100) : null;
+          return (
+            <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
+              <span className="ct">{c.team}</span>
+              <span className="cp">{ap!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{ap}%</span>{locked?'✓':''}</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
+            </div>
+          );
+        })}
     </div>
   );
 }
@@ -306,14 +309,12 @@ function chunk(a,n){const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n)
 function MatchCard({m}){
   const empty = (!m.a||!m.a.length) && (!m.b||!m.b.length);
   const adv = m.pAdv||null;
-  const aLocked = m.a&&m.a.length===1&&m.a[0].p>=0.995;
-  const bLocked = m.b&&m.b.length===1&&m.b[0].p>=0.995;
   return (
     <div className={'bmatch'+(empty?' tbd':'')}>
       {empty ? <div className="tbdlbl">TBD</div> : <>
-        <TSlot cands={m.a} label={m.a_label} advPct={adv&&aLocked?Math.round(adv[m.a[0].team]*100):null}/>
+        <TSlot cands={m.a} label={m.a_label} adv={adv}/>
         <div className="bvs">v</div>
-        <TSlot cands={m.b} label={m.b_label} advPct={adv&&bLocked?Math.round(adv[m.b[0].team]*100):null}/>
+        <TSlot cands={m.b} label={m.b_label} adv={adv}/>
       </>}
     </div>
   );
