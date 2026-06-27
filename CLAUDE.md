@@ -114,6 +114,7 @@ worldcup-iq/
 3. **Player-level, not team-level** — Teams are compositions of players. Injuries, lineup changes, and tactical selections all affect predictions.
 4. **Calibration over accuracy** — Getting probabilities right matters more than the headline "% correct." A model that says "60% ± 5%" and is calibrated is better than one that says "90%" and is wrong.
 5. **Market as ground truth** — Bookmaker closing odds are the benchmark. Beating the market is the real test. Not beating it is also a valid finding.
+6. **Source data from the authority, never from AI summaries** — When the project needs structured data (FIFA regulation tables, match results, bracket assignments), always parse the actual authoritative source (official PDF, live API, official website). Never use AI-generated summaries, solver-generated reconstructions, or WebFetch text extractions as the data source. They silently corrupt rows and columns.
 
 ---
 
