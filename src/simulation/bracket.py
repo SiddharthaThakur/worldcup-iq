@@ -203,9 +203,21 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
             m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
 
-    # Later rounds: populate candidates from feeder matches and compute
-    # advancement probs when both feeders are confirmed
-    for rnd in bracket[1:]:
+    # R16: populate candidates and compute advancement probs
+    r16 = bracket[1]["matches"] if len(bracket) > 1 else []
+    for m in r16:
+        if "from" not in m:
+            continue
+        fa, fb = m["from"]
+        ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
+        m["a"] = _feeder_candidates(ma)
+        m["b"] = _feeder_candidates(mb)
+        if ma.get("pAdv") and mb.get("pAdv"):
+            m["pAdv"] = _compute_round_pAdv(
+                ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
+
+    # QF and beyond: populate candidates only, no probabilities
+    for rnd in bracket[2:]:
         for m in rnd["matches"]:
             if "from" not in m:
                 continue
@@ -213,9 +225,6 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
             m["a"] = _feeder_candidates(ma)
             m["b"] = _feeder_candidates(mb)
-            if ma.get("pAdv") and mb.get("pAdv"):
-                m["pAdv"] = _compute_round_pAdv(
-                    ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
 
 
 def _compute_round_pAdv(adv_a, adv_b, strengths, host_teams, params):
