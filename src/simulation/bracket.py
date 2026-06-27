@@ -216,15 +216,7 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             m["pAdv"] = _compute_round_pAdv(
                 ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
 
-    # QF and beyond: populate candidates only, no probabilities
-    for rnd in bracket[2:]:
-        for m in rnd["matches"]:
-            if "from" not in m:
-                continue
-            fa, fb = m["from"]
-            ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
-            m["a"] = _feeder_candidates(ma)
-            m["b"] = _feeder_candidates(mb)
+    # QF and beyond: leave as TBD (no candidates, no probabilities)
 
 
 def _compute_round_pAdv(adv_a, adv_b, strengths, host_teams, params):
