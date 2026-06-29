@@ -90,6 +90,16 @@ def load_wc2026(raw_path: Path = RAW_PATH, save: bool = True) -> WC2026:
         fx["date"].dt.strftime("%Y-%m-%d") + "_" + fx["home_code"] + "_" + fx["away_code"]
     )
 
+    # Filter to group-stage matches only (both teams in the same official group).
+    # The results file may include knockout matches that cross group boundaries.
+    all_group_teams = {t for teams in OFFICIAL_GROUPS.values() for t in teams}
+    team_to_group = {t: g for g, teams in OFFICIAL_GROUPS.items() for t in teams}
+    is_group_match = fx.apply(
+        lambda r: (r["home_code"] in team_to_group and r["away_code"] in team_to_group
+                   and team_to_group[r["home_code"]] == team_to_group[r["away_code"]]),
+        axis=1)
+    fx = fx[is_group_match].copy()
+
     components = _connected_components(list(zip(fx["home_code"], fx["away_code"])))
 
     # Assign each fixture-derived component to its OFFICIAL group letter, and
