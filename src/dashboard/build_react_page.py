@@ -293,10 +293,11 @@ function TSlot({cands, label, adv}){
       {!cands.length ? <span className="ct dim">—</span> :
         cands.map((c,i)=>{
           const ap = adv && adv[c.team]!=null ? Math.round(adv[c.team]*100) : null;
+          const elim = c.elim;
           return (
-            <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')} key={c.team}>
-              <span className="ct">{c.team}</span>
-              <span className="cp">{ap!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{ap}%</span>{locked?'✓':''}</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>
+            <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')+(elim?' elim':'')} key={c.team}>
+              <span className="ct" style={elim?{textDecoration:'line-through',opacity:0.45}:{}}>{c.team}</span>
+              {!elim && <span className="cp">{ap!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{ap}%</span>{locked?'✓':''}</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>}
             </div>
           );
         })}

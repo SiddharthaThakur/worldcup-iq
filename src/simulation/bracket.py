@@ -198,8 +198,8 @@ def _apply_ko_results(bracket, ko_results):
             for matchup, winner in ko_results.items():
                 if matchup <= (teams_a | teams_b) and matchup & teams_a and matchup & teams_b:
                     loser = next(iter(matchup - {winner}))
-                    m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else []
-                    m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else []
+                    m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else [{"team": loser, "p": 0.0, "elim": True}]
+                    m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else [{"team": loser, "p": 0.0, "elim": True}]
                     m["pAdv"] = {winner: 1.0}
                     m["decided"] = True
                     break
