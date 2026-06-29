@@ -285,6 +285,54 @@ def _completed_group_games(results: pd.DataFrame, wc) -> tuple[dict, dict]:
     return sim_completed, by_id
 
 
+def _completed_knockout_games(results: pd.DataFrame) -> dict[frozenset, str]:
+    """Return {frozenset({team_a, team_b}): winner_code} for played knockout games.
+
+    Knockout games can't draw (ET/pens decide), so the team with more goals
+    wins. If scores are level the data source records the penalty winner as
+    having an extra goal.
+    """
+    from src.data.team_aliases import resolve_team_code
+    from src.data.wc2026 import OFFICIAL_GROUPS
+
+    team_to_group = {t: g for g, teams in OFFICIAL_GROUPS.items() for t in teams}
+    played = results[(results["tournament"] == "FIFA World Cup")
+                     & (results["date"].dt.year == 2026)
+                     & results["home_score"].notna()]
+    ko_results = {}
+    for _, m in played.iterrows():
+        h = resolve_team_code(m["home_team"])
+        a = resolve_team_code(m["away_team"])
+        if team_to_group.get(h) == team_to_group.get(a):
+            continue  # group game, not knockout
+        hg, ag = int(m["home_score"]), int(m["away_score"])
+        winner = h if hg > ag else a
+        ko_results[frozenset({h, a})] = winner
+    return ko_results
+
+
+def _apply_knockout_results(bracket: list[dict], ko_results: dict[frozenset, str]):
+    """Update bracket matches with actual knockout results.
+
+    For completed matches, sets pAdv to {winner: 1.0} and candidate lists
+    to just the winner at p=1.0.
+    """
+    for rnd in bracket:
+        for m in rnd["matches"]:
+            teams_a = {c["team"] for c in m.get("a", [])}
+            teams_b = {c["team"] for c in m.get("b", [])}
+            all_teams = teams_a | teams_b
+            for matchup, winner in ko_results.items():
+                if matchup <= all_teams and len(matchup & teams_a) == 1 and len(matchup & teams_b) == 1:
+                    m["pAdv"] = {winner: 1.0}
+                    m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else [{"team": list(matchup & teams_a)[0], "p": 0.0}]
+                    m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else [{"team": list(matchup & teams_b)[0], "p": 0.0}]
+                    # Simplify: only keep the winner
+                    m["a"] = [c for c in m["a"] if c["team"] == winner]
+                    m["b"] = [c for c in m["b"] if c["team"] == winner]
+                    break
+
+
 def update(n_sims: int = 20000) -> dict:
     if _today() > TOURNAMENT_OVER_AFTER:
         print(f"The 2026 World Cup is over (after {TOURNAMENT_OVER_AFTER}); "
@@ -335,7 +383,9 @@ def update(n_sims: int = 20000) -> dict:
                                    n_sims=min(n_sims, 20000), completed=completed_sim)
     bracket = build_progressive_bracket(positions, wc.groups)
     from src.simulation.bracket import annotate_knockout_probs
-    annotate_knockout_probs(bracket, champ, {"USA", "CAN", "MEX"}, params)
+    ko_results = _completed_knockout_games(results)
+    annotate_knockout_probs(bracket, champ, {"USA", "CAN", "MEX"}, params,
+                            ko_results=ko_results)
     BRACKET.write_text(json.dumps(bracket))
 
     # 4. movement vs previous snapshot

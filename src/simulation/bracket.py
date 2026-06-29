@@ -187,7 +187,26 @@ def _is_confirmed(match):
             len(match.get("b", [])) == 1 and match["b"][0]["p"] >= 0.995)
 
 
-def annotate_knockout_probs(bracket, strengths, host_teams, params):
+def _apply_ko_results(bracket, ko_results):
+    """Mark completed knockout matches: winner gets pAdv=1.0, loser removed."""
+    if not ko_results:
+        return
+    for rnd in bracket:
+        for m in rnd["matches"]:
+            teams_a = {c["team"] for c in m.get("a", [])}
+            teams_b = {c["team"] for c in m.get("b", [])}
+            for matchup, winner in ko_results.items():
+                if matchup <= (teams_a | teams_b) and matchup & teams_a and matchup & teams_b:
+                    loser = next(iter(matchup - {winner}))
+                    m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else []
+                    m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else []
+                    m["pAdv"] = {winner: 1.0}
+                    m["decided"] = True
+                    break
+
+
+def annotate_knockout_probs(bracket, strengths, host_teams, params,
+                            ko_results=None):
     """Add advancement probabilities to confirmed matchups and propagate
     to later rounds. Modifies the bracket list in place."""
     by_match = {}
@@ -203,10 +222,13 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params):
             pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
             m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
 
+    # Apply actual knockout results (overrides pAdv for decided matches)
+    _apply_ko_results(bracket, ko_results or {})
+
     # R16: populate candidates and compute advancement probs
     r16 = bracket[1]["matches"] if len(bracket) > 1 else []
     for m in r16:
-        if "from" not in m:
+        if "from" not in m or m.get("decided"):
             continue
         fa, fb = m["from"]
         ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
