@@ -270,7 +270,9 @@ HTML = """<!DOCTYPE html>
   .tcand{display:flex;justify-content:space-between;font-size:12px}
   .tcand .ct{color:var(--mut)} .tcand.top .ct{color:#fff;font-weight:700}
   .tcand.qual .ct{color:#3fb950} .tcand .cp{color:var(--mut);font-variant-numeric:tabular-nums}
+  .tcand.decided .ct{color:#3fb950;font-weight:700}
   .tcand .ct.dim{color:#484f58}
+  .bmatch.decided{border-color:#238636}
   .bmatch.tbd{display:flex;align-items:center;justify-content:center;min-height:42px;border-style:dashed}
   .tbdlbl{color:#484f58;font-size:11px;letter-spacing:1px}
 </style>
@@ -285,7 +287,7 @@ const BRACKET = __BRACKET__;
 const GOALS = __GOALS__;
 const TREE = __TREE__;
 
-function TSlot({cands, label, adv}){
+function TSlot({cands, label, adv, preAdv, decided}){
   const locked = cands.length===1 && cands[0].p>=0.995;
   return (
     <div className="tslot">
@@ -294,10 +296,13 @@ function TSlot({cands, label, adv}){
         cands.map((c,i)=>{
           const ap = adv && adv[c.team]!=null ? Math.round(adv[c.team]*100) : null;
           const elim = c.elim;
+          const pre = preAdv && preAdv[c.team]!=null ? Math.round(preAdv[c.team]*100) : null;
           return (
-            <div className={'tcand'+(i===0?' top':'')+(locked?' qual':'')+(elim?' elim':'')} key={c.team}>
+            <div className={'tcand'+(i===0?' top':'')+(locked&&!decided?' qual':'')+(elim?' elim':'')+(decided&&!elim?' decided':'')} key={c.team}>
               <span className="ct" style={elim?{textDecoration:'line-through',opacity:0.45}:{}}>{c.team}</span>
-              {!elim && <span className="cp">{ap!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{ap}%</span>{locked?'✓':''}</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>}
+              {elim ? (pre!=null && <span className="cp" style={{opacity:0.45}}>{pre}%</span>) :
+               decided ? <span className="cp"><span style={{color:'#58a6ff',marginRight:4}}>{pre!=null?pre+'%':'—'}</span>✓</span> :
+               <span className="cp">{ap!=null ? <><span style={{color:'#58a6ff',marginRight:4}}>{ap}%</span>{locked?'✓':''}</> : locked?'✓':(c.p*100).toFixed(0)+'%'}</span>}
             </div>
           );
         })}
@@ -310,12 +315,14 @@ function chunk(a,n){const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n)
 function MatchCard({m}){
   const empty = (!m.a||!m.a.length) && (!m.b||!m.b.length);
   const adv = m.pAdv||null;
+  const preAdv = m.prePAdv||null;
+  const decided = !!m.decided;
   return (
-    <div className={'bmatch'+(empty?' tbd':'')}>
+    <div className={'bmatch'+(empty?' tbd':'')+(decided?' decided':'')}>
       {empty ? <div className="tbdlbl">TBD</div> : <>
-        <TSlot cands={m.a} label={m.a_label} adv={adv}/>
+        <TSlot cands={m.a} label={m.a_label} adv={adv} preAdv={preAdv} decided={decided}/>
         <div className="bvs">v</div>
-        <TSlot cands={m.b} label={m.b_label} adv={adv}/>
+        <TSlot cands={m.b} label={m.b_label} adv={adv} preAdv={preAdv} decided={decided}/>
       </>}
     </div>
   );

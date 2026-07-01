@@ -188,7 +188,7 @@ def _is_confirmed(match):
 
 
 def _apply_ko_results(bracket, ko_results):
-    """Mark completed knockout matches: winner gets pAdv=1.0, loser removed."""
+    """Mark completed knockout matches. Preserves pre-game pAdv as prePAdv."""
     if not ko_results:
         return
     for rnd in bracket:
@@ -198,8 +198,10 @@ def _apply_ko_results(bracket, ko_results):
             for matchup, winner in ko_results.items():
                 if matchup <= (teams_a | teams_b) and matchup & teams_a and matchup & teams_b:
                     loser = next(iter(matchup - {winner}))
+                    pre_padv = m.get("pAdv", {})
                     m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else [{"team": loser, "p": 0.0, "elim": True}]
                     m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else [{"team": loser, "p": 0.0, "elim": True}]
+                    m["prePAdv"] = pre_padv
                     m["pAdv"] = {winner: 1.0}
                     m["decided"] = True
                     break

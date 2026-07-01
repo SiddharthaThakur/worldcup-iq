@@ -288,9 +288,9 @@ def _completed_group_games(results: pd.DataFrame, wc) -> tuple[dict, dict]:
 def _completed_knockout_games(results: pd.DataFrame) -> dict[frozenset, str]:
     """Return {frozenset({team_a, team_b}): winner_code} for played knockout games.
 
-    Knockout games can't draw (ET/pens decide), so the team with more goals
-    wins. If scores are level the data source records the penalty winner as
-    having an extra goal.
+    When scores differ, the higher-scoring team won. When scores are level
+    the game went to penalties — look up the winner in PENALTY_WINNERS
+    (the CSV data source doesn't record shootout results).
     """
     from src.data.team_aliases import resolve_team_code
     from src.data.wc2026 import OFFICIAL_GROUPS
@@ -306,9 +306,21 @@ def _completed_knockout_games(results: pd.DataFrame) -> dict[frozenset, str]:
         if team_to_group.get(h) == team_to_group.get(a):
             continue  # group game, not knockout
         hg, ag = int(m["home_score"]), int(m["away_score"])
-        winner = h if hg > ag else a
+        if hg != ag:
+            winner = h if hg > ag else a
+        else:
+            key = frozenset({h, a})
+            winner = PENALTY_WINNERS.get(key)
+            if winner is None:
+                continue  # draw with unknown shootout result — skip
         ko_results[frozenset({h, a})] = winner
     return ko_results
+
+
+PENALTY_WINNERS = {
+    frozenset({"GER", "PAR"}): "PAR",   # M74: Paraguay won 4-3 on pens
+    frozenset({"NED", "MAR"}): "MAR",   # M75: Morocco won 3-2 on pens
+}
 
 
 def _apply_knockout_results(bracket: list[dict], ko_results: dict[frozenset, str]):
