@@ -320,6 +320,7 @@ def _completed_knockout_games(results: pd.DataFrame) -> dict[frozenset, str]:
 PENALTY_WINNERS = {
     frozenset({"GER", "PAR"}): "PAR",   # M74: Paraguay won 4-3 on pens
     frozenset({"NED", "MAR"}): "MAR",   # M75: Morocco won 3-2 on pens
+    frozenset({"AUS", "EGY"}): "EGY",   # M88: Egypt won 4-2 on pens
 }
 
 
