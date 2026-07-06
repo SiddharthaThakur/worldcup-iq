@@ -313,9 +313,15 @@ def simulate_tournament_once(
     rng: np.random.Generator,
     config: SimulationConfig,
     completed: dict | None = None,
+    ko_results: dict | None = None,
 ) -> dict[str, str]:
-    """One full tournament simulation. Returns {team: furthest_stage_reached}."""
+    """One full tournament simulation. Returns {team: furthest_stage_reached}.
+
+    ko_results: {frozenset({team_a, team_b}): winner} — fixes knockout
+    match outcomes to real results instead of simulating them.
+    """
     reached: dict[str, str] = {t: "group" for ts in groups.values() for t in ts}
+    ko_results = ko_results or {}
 
     group_results = []
     for gname, teams in groups.items():
@@ -330,8 +336,12 @@ def simulate_tournament_once(
     for match_no, (a, b) in r32.items():
         reached[a] = "r32"
         reached[b] = "r32"
-        a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
-        match_winner[match_no] = a if a_wins else b
+        fixed = ko_results.get(frozenset({a, b}))
+        if fixed:
+            match_winner[match_no] = fixed
+        else:
+            a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
+            match_winner[match_no] = a if a_wins else b
 
     for stage, pairs in [("r16", _R16_PAIRS), ("qf", _QF_PAIRS),
                          ("sf", _SF_PAIRS), ("final", [_FINAL_PAIR])]:
@@ -339,8 +349,12 @@ def simulate_tournament_once(
             a, b = match_winner[feed_a], match_winner[feed_b]
             reached[a] = stage
             reached[b] = stage
-            a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
-            match_winner[match_no] = a if a_wins else b
+            fixed = ko_results.get(frozenset({a, b}))
+            if fixed:
+                match_winner[match_no] = fixed
+            else:
+                a_wins = resolve_knockout(a, b, strengths, host_teams, params, rng, config)
+                match_winner[match_no] = a if a_wins else b
 
     reached[match_winner[_FINAL_PAIR[0]]] = "champion"
     return reached
@@ -353,11 +367,13 @@ def run_simulation(
     params: DixonColesParams | None = None,
     config: SimulationConfig | None = None,
     completed: dict | None = None,
+    ko_results: dict | None = None,
 ) -> pd.DataFrame:
     """Run the full Monte Carlo and return per-team advancement probabilities.
 
-    `completed` (optional) fixes already-played group games so the odds
-    reflect real results so far. Returns a DataFrame with columns:
+    `completed` fixes already-played group games. `ko_results` fixes
+    knockout match outcomes ({frozenset({a, b}): winner}). Returns a
+    DataFrame with columns:
         team, p_r32, p_r16, p_qf, p_sf, p_final, p_champion
     sorted by champion probability.
     """
@@ -371,7 +387,8 @@ def run_simulation(
 
     for _ in range(config.n_sims):
         reached = simulate_tournament_once(groups, strengths, host_teams, params, rng,
-                                           config, completed=completed)
+                                           config, completed=completed,
+                                           ko_results=ko_results)
         for team, stage in reached.items():
             idx = stage_order.index(stage)
             counts[team][: idx + 1] += 1  # reaching SF implies reaching QF, etc.

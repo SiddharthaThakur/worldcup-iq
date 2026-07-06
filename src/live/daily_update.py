@@ -380,23 +380,20 @@ def update(n_sims: int = 20000) -> dict:
                                         [base[t] for t in base])
     champ = {t: blended_rating(base[t], bridge.to_elo(strengths[t]["overall"]),
                                strengths[t]["confidence"], CHAMPION_LAMBDA) for t in base}
+    ko_results = _completed_knockout_games(results)
     sim = run_simulation(wc.groups, champ, host_teams={"USA", "CAN", "MEX"},
                          params=params, config=SimulationConfig(n_sims=n_sims),
-                         completed=completed_sim)
+                         completed=completed_sim, ko_results=ko_results)
     today_probs = dict(zip(sim["team"], sim["p_champion"]))
-    # Full per-round probabilities for the bracket funnel (reflects games so far)
     sim[["team", "p_r32", "p_r16", "p_qf", "p_sf", "p_final", "p_champion"]].to_csv(
         ADVANCEMENT, index=False)
     build_goals_table(results, wc, champ, params)
 
-    # Bracket: project the Round of 32 (top-3 per slot); later rounds are
-    # placeholders that fill in as feeder games are decided.
     from src.simulation.bracket import build_progressive_bracket, simulate_positions
     positions = simulate_positions(wc.groups, champ, {"USA", "CAN", "MEX"}, params,
                                    n_sims=min(n_sims, 20000), completed=completed_sim)
     bracket = build_progressive_bracket(positions, wc.groups)
     from src.simulation.bracket import annotate_knockout_probs
-    ko_results = _completed_knockout_games(results)
     annotate_knockout_probs(bracket, champ, {"USA", "CAN", "MEX"}, params,
                             ko_results=ko_results)
     BRACKET.write_text(json.dumps(bracket))
@@ -410,9 +407,11 @@ def update(n_sims: int = 20000) -> dict:
     movement = movement_vs_previous(today_probs, prev)
     snap = pd.DataFrame({"date": _today(), "team": list(today_probs),
                          "p_champion": list(today_probs.values())})
-    if HISTORY.exists() and _today() not in set(pd.read_csv(HISTORY)["date"]):
-        snap.to_csv(HISTORY, mode="a", header=False, index=False)
-    elif not HISTORY.exists():
+    if HISTORY.exists():
+        h_all = pd.read_csv(HISTORY)
+        h_all = h_all[h_all["date"] != _today()]
+        pd.concat([h_all, snap], ignore_index=True).to_csv(HISTORY, index=False)
+    else:
         snap.to_csv(HISTORY, index=False)
 
     # Merge in the frozen offline Bayesian predictions (precomputed; the daily
