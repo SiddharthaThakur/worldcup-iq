@@ -333,7 +333,7 @@ function BracketTree(){
   return (
     <div>
       <div className="sec">🧩 Bracket — who's likely to meet whom <span style={{color:'var(--mut)',fontWeight:400,fontSize:13}}>(scroll right → for later rounds)</span></div>
-      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>The Round of 32 shows each slot's 3 most likely teams (narrows to 1 ✓ as groups finish). Later rounds fill in once the previous round's games are played.</div>
+      <div style={{color:'var(--mut)',fontSize:12,marginBottom:10}}>Decided matches show the pre-game prediction with ✓ for the winner. Undecided matches show each team's probability of advancing.</div>
       <div className="btree">
         {TREE.map((round,ri)=>{
           const last = ri===TREE.length-1;

@@ -187,24 +187,25 @@ def _is_confirmed(match):
             len(match.get("b", [])) == 1 and match["b"][0]["p"] >= 0.995)
 
 
-def _apply_ko_results(bracket, ko_results):
-    """Mark completed knockout matches. Preserves pre-game pAdv as prePAdv."""
+def _apply_ko_results_round(matches, ko_results):
+    """Mark completed knockout matches in a single round. Preserves pre-game pAdv as prePAdv."""
     if not ko_results:
         return
-    for rnd in bracket:
-        for m in rnd["matches"]:
-            teams_a = {c["team"] for c in m.get("a", [])}
-            teams_b = {c["team"] for c in m.get("b", [])}
-            for matchup, winner in ko_results.items():
-                if matchup <= (teams_a | teams_b) and matchup & teams_a and matchup & teams_b:
-                    loser = next(iter(matchup - {winner}))
-                    pre_padv = m.get("pAdv", {})
-                    m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else [{"team": loser, "p": 0.0, "elim": True}]
-                    m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else [{"team": loser, "p": 0.0, "elim": True}]
-                    m["prePAdv"] = pre_padv
-                    m["pAdv"] = {winner: 1.0}
-                    m["decided"] = True
-                    break
+    for m in matches:
+        if m.get("decided"):
+            continue
+        teams_a = {c["team"] for c in m.get("a", [])}
+        teams_b = {c["team"] for c in m.get("b", [])}
+        for matchup, winner in ko_results.items():
+            if matchup <= (teams_a | teams_b) and matchup & teams_a and matchup & teams_b:
+                loser = next(iter(matchup - {winner}))
+                pre_padv = m.get("pAdv", {})
+                m["a"] = [{"team": winner, "p": 1.0}] if winner in teams_a else [{"team": loser, "p": 0.0, "elim": True}]
+                m["b"] = [{"team": winner, "p": 1.0}] if winner in teams_b else [{"team": loser, "p": 0.0, "elim": True}]
+                m["prePAdv"] = pre_padv
+                m["pAdv"] = {winner: 1.0}
+                m["decided"] = True
+                break
 
 
 def annotate_knockout_probs(bracket, strengths, host_teams, params,
@@ -216,31 +217,28 @@ def annotate_knockout_probs(bracket, strengths, host_teams, params,
         for m in rnd["matches"]:
             by_match[m["match"]] = m
 
-    # R32: compute advancement probs for confirmed ties
-    r32 = bracket[0]["matches"]
-    for m in r32:
-        if _is_confirmed(m):
-            ta, tb = m["a"][0]["team"], m["b"][0]["team"]
-            pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
-            m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
+    ko_res = ko_results or {}
 
-    # Apply actual knockout results (overrides pAdv for decided matches)
-    _apply_ko_results(bracket, ko_results or {})
+    # Process each round: compute probs, apply actual results, then move on
+    for rnd in bracket:
+        for m in rnd["matches"]:
+            if m.get("decided"):
+                continue
 
-    # R16: populate candidates and compute advancement probs
-    r16 = bracket[1]["matches"] if len(bracket) > 1 else []
-    for m in r16:
-        if "from" not in m or m.get("decided"):
-            continue
-        fa, fb = m["from"]
-        ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
-        m["a"] = _feeder_candidates(ma)
-        m["b"] = _feeder_candidates(mb)
-        if ma.get("pAdv") and mb.get("pAdv"):
-            m["pAdv"] = _compute_round_pAdv(
-                ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
+            if "from" in m:
+                fa, fb = m["from"]
+                ma, mb = by_match.get(fa, {}), by_match.get(fb, {})
+                m["a"] = _feeder_candidates(ma)
+                m["b"] = _feeder_candidates(mb)
+                if ma.get("pAdv") and mb.get("pAdv"):
+                    m["pAdv"] = _compute_round_pAdv(
+                        ma["pAdv"], mb["pAdv"], strengths, host_teams, params)
+            elif _is_confirmed(m):
+                ta, tb = m["a"][0]["team"], m["b"][0]["team"]
+                pa = _knockout_advance_prob(ta, tb, strengths, host_teams, params)
+                m["pAdv"] = {ta: pa, tb: round(1 - pa, 3)}
 
-    # QF and beyond: leave as TBD (no candidates, no probabilities)
+        _apply_ko_results_round(rnd["matches"], ko_res)
 
 
 def _compute_round_pAdv(adv_a, adv_b, strengths, host_teams, params):
