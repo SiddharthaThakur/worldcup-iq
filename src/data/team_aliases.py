@@ -115,6 +115,8 @@ def resolve_team_code(name: str) -> str:
     """
     if not _name_to_code:
         _build_lookup()
+    if not isinstance(name, str):
+        return str(name)
     return _name_to_code.get(name.strip().lower(), name)
 
 
